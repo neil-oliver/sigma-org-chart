@@ -3,7 +3,7 @@ import { client, useConfig, useElementData } from '@sigmacomputing/plugin';
 import { Button } from './components/ui/button';
 import { Settings as SettingsIcon } from 'lucide-react';
 import Settings, { DEFAULT_SETTINGS } from './Settings';
-import UserCard from './components/UserCard';
+import OrgChart from './components/OrgChart';
 import { 
   SigmaConfig, 
   SigmaData, 
@@ -235,11 +235,7 @@ const App: React.FC = (): React.JSX.Element => {
           </div>
           
           {users.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {users.map((user, index) => (
-                <UserCard key={index} user={user} />
-              ))}
-            </div>
+            <OrgChart users={users} />
           ) : (
             <div className="flex items-center justify-center h-64">
               <div className="text-center">

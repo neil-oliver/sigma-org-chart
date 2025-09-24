@@ -1,2 +1,67 @@
 /* Template plugin styles */
 /* Add your custom styles here */ 
+
+/* Org Chart Specific Styles */
+.org-chart-container {
+  --org-line-color: hsl(var(--border));
+}
+
+.org-chart {
+  /* Smooth scrolling for horizontal overflow */
+  scroll-behavior: smooth;
+}
+
+/* Connecting lines for org chart */
+.org-node .children-container::before {
+  content: '';
+  position: absolute;
+  top: -32px; /* Distance from card to line */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 32px;
+  background: var(--org-line-color);
+}
+
+/* Enhance the connecting lines */
+.org-node .children-container .children-horizontal-line {
+  background: var(--org-line-color);
+  position: relative;
+}
+
+/* Child connection dots */
+.org-node .children-container .child-connection::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  border: 2px solid hsl(var(--background));
+  z-index: 10;
+}
+
+/* Improve spacing and alignment */
+.org-chart .flex {
+  align-items: flex-start;
+}
+
+/* Better responsive behavior */
+@media (max-width: 768px) {
+  .org-chart {
+    padding: 0 1rem;
+  }
+  
+  .org-node .children-container .flex {
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+  }
+  
+  .org-node .children-container .children-horizontal-line {
+    display: none;
+  }
+}

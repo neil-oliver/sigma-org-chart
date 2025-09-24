@@ -1,12 +1,20 @@
 import React from 'react';
 import { Card, CardContent } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Mail, MessageCircle, Building2, MapPin, Calendar, Users, Copy } from 'lucide-react';
+import { Button } from './ui/button';
+import { Mail, MessageCircle, Building2, MapPin, Calendar, Users, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { UserData } from '../types';
 
 interface UserCardProps {
   user: UserData;
   className?: string;
+  // Org chart specific props
+  hasChildren?: boolean;
+  childCount?: number;
+  visibleChildCount?: number;
+  isExpanded?: boolean;
+  level?: number;
+  onToggleExpand?: () => void;
 }
 
 // Compute a stable index from a string for consistent color selection
@@ -61,7 +69,16 @@ function getPillClasses(organizationUnit?: string): string {
   return pillVariants[index];
 }
 
-const UserCard: React.FC<UserCardProps> = ({ user, className }) => {
+const UserCard: React.FC<UserCardProps> = ({ 
+  user, 
+  className,
+  hasChildren = false,
+  childCount = 0,
+  visibleChildCount = 0,
+  isExpanded = false,
+  level = 0,
+  onToggleExpand
+}) => {
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -116,6 +133,25 @@ const UserCard: React.FC<UserCardProps> = ({ user, className }) => {
             </button>
           )}
         </div>
+        
+        {/* Expand/Collapse button */}
+        {hasChildren && (
+          <div className="absolute left-3 top-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onToggleExpand}
+              className="h-8 w-8 p-0 rounded-full bg-white/20 text-white backdrop-blur hover:bg-white/30 transition-colors"
+              title={isExpanded ? `Hide ${childCount} direct reports` : `Show ${childCount} direct reports`}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="-mt-10 px-6">
@@ -179,6 +215,15 @@ const UserCard: React.FC<UserCardProps> = ({ user, className }) => {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Users className="h-4 w-4" />
                 <span className="truncate">Reports to: {user.manager}</span>
+              </div>
+            )}
+            {hasChildren && childCount > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Users className="h-4 w-4" />
+                <span className="truncate">
+                  {childCount} direct report{childCount !== 1 ? 's' : ''}
+                  {!isExpanded && ` (${visibleChildCount} shown)`}
+                </span>
               </div>
             )}
           </div>
