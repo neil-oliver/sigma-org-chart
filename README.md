@@ -1,70 +1,104 @@
-# Getting Started with Create React App
+# Sigma Plugin Template
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A clean, simple template for building Sigma Computing plugins with React, TypeScript, and shadcn/ui components.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Simple Data Display**: Shows row count and column information from selected data
+- **Settings Panel**: Configurable background and text colors (accessible in edit mode)
+- **TypeScript**: Full type safety with strict configuration and better developer experience
+- **shadcn/ui Components**: Modern, accessible UI components built with Radix UI
+- **Sigma Integration**: Ready-to-use Sigma plugin configuration
+- **Clean Code Structure**: Easy to understand and modify for new plugins
 
-### `yarn start`
+## Getting Started
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+1. **Clone this template** to start building your own Sigma plugin
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+3. **Start development server**:
+   ```bash
+   npm start
+   ```
+4. **Build for production**:
+   ```bash
+   npm run build
+   ```
+5. **Type checking**:
+   ```bash
+   npm run type-check
+   ```
+6. **Linting**:
+   ```bash
+   npm run lint
+   ```
+7. **Clean cache**:
+   ```bash
+   npm run clean
+   ```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Plugin Configuration
 
-### `yarn test`
+The plugin is configured with the following editor panel options:
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- **Source**: Select a data source element
+- **Data Column**: Choose a column from the selected source
+- **Settings Config**: JSON configuration for plugin settings
+- **Edit Mode**: Toggle to access settings panel
 
-### `yarn build`
+## Customization
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Adding New Settings
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+1. Update `DEFAULT_SETTINGS` in `src/Settings.js`
+2. Add new form controls to the Settings component
+3. Apply the settings in your main component
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Modifying the Display
 
-### `yarn eject`
+The main display logic is in `src/App.js`. Replace the simple data info display with your custom functionality.
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### Styling
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+The template uses Tailwind CSS with shadcn/ui components. You can:
+- Modify colors in `tailwind.config.js`
+- Add custom styles in `src/App.css`
+- Use the built-in design system components
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## File Structure
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+```
+src/
+├── App.tsx              # Main plugin component (TypeScript)
+├── Settings.tsx         # Settings panel component (TypeScript)
+├── index.tsx            # Entry point (TypeScript)
+├── types/
+│   ├── sigma.ts         # Plugin type definitions
+│   └── sigma-client.d.ts # Sigma client declarations
+├── components/ui/       # shadcn/ui components (TypeScript)
+├── lib/
+│   └── utils.ts         # Utility functions (TypeScript)
+└── App.css              # Clean CSS file
+```
 
-## Learn More
+## Dependencies
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+- **React**: UI framework
+- **TypeScript**: Type safety and developer experience
+- **@sigmacomputing/plugin**: Sigma plugin SDK
+- **shadcn/ui**: Component library
+- **Tailwind CSS**: Styling framework
+- **Lucide React**: Icons
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Development Tips
 
-### Code Splitting
+1. **Test in Sigma**: Use the development server to test your plugin in Sigma
+2. **Settings**: Always save settings to the config using `client.config.set()`
+3. **Error Handling**: Add proper error boundaries and loading states
+4. **Responsive Design**: Ensure your plugin works in different container sizes
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## License
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This template is provided as-is for building Sigma Computing plugins.
