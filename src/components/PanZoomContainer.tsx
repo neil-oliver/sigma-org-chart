@@ -82,6 +82,7 @@ const PanZoomContainer: React.FC<PanZoomContainerProps> = ({
   }, [zoom]);
 
   // Reset position handler (can be called from parent)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const resetPosition = useCallback(() => {
     if (containerRef.current && contentRef.current) {
       const container = containerRef.current.getBoundingClientRect();
