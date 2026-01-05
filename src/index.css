@@ -67,4 +67,83 @@
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
-} 
+}
+
+/* Print Styles */
+@media print {
+  /* Force light theme colors for printing */
+  :root {
+    --background: 0 0% 100% !important;
+    --foreground: 240 10% 3.9% !important;
+    --card: 0 0% 100% !important;
+    --card-foreground: 240 10% 3.9% !important;
+    --muted: 240 4.8% 95.9% !important;
+    --muted-foreground: 240 3.8% 46.1% !important;
+    --border: 240 5.9% 90% !important;
+  }
+
+  /* Reset body */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide UI elements that shouldn't print */
+  .org-chart-container > div:first-child, /* Row 1: Navigation bar */
+  .org-chart-container > div:nth-child(2), /* Row 2: Toolbar */
+  .org-chart-container > .px-4.py-2.bg-yellow-50, /* Performance warning */
+  .org-chart-container > .px-4.py-3.border-b, /* Filter panel */
+  [data-minimap], /* Minimap */
+  [data-sidebar], /* Detail sidebar */
+  button, /* All buttons */
+  .search-bar, /* Search */
+  [role="menu"], /* Dropdowns */
+  .animate-in { /* Any animated overlays */
+    display: none !important;
+  }
+
+  /* Show the org chart canvas */
+  .org-chart {
+    overflow: visible !important;
+    height: auto !important;
+    background: white !important;
+  }
+
+  /* Reset transform and show full content */
+  .org-chart > div {
+    transform: none !important;
+    position: relative !important;
+  }
+
+  /* Ensure cards print nicely */
+  .org-chart [class*="Card"],
+  .org-chart [class*="card"] {
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Hide expand/collapse chevrons in print */
+  .org-chart svg[class*="Chevron"] {
+    display: none !important;
+  }
+
+  /* Page settings */
+  @page {
+    size: landscape;
+    margin: 0.5in;
+  }
+
+  /* Add title at top of print */
+  .org-chart-container::before {
+    content: "Organization Chart";
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    padding: 20px 0;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 20px;
+  }
+}

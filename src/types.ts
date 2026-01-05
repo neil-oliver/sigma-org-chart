@@ -25,3 +25,13 @@ export interface UserData {
   office: string;
   startDate: string;
 }
+
+// Card display size mode
+export type CardSizeMode = 'compact' | 'standard';
+
+// Org chart display settings
+export interface OrgChartDisplaySettings {
+  cardSizeMode: CardSizeMode;
+  initialExpandDepth: number; // How many levels to expand by default (1 = just root, 2 = root + direct reports)
+  showConnectingLines: boolean;
+}

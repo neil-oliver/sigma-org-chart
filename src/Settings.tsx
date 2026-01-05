@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Label } from './components/ui/label';
+import { Switch } from './components/ui/switch';
 import { PluginSettings } from './types/sigma';
-import { Palette, RotateCcw } from 'lucide-react';
+import { Palette, RotateCcw, Settings as SettingsIcon, Eye } from 'lucide-react';
 
 // Theme presets (aligned with CSS variables in index.css / tailwind.config)
 const PRESET_THEMES: Record<string, { name: string; colors: Record<string, string> }> = {
@@ -59,7 +60,6 @@ const PRESET_THEMES: Record<string, { name: string; colors: Record<string, strin
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
-  title: 'Sigma Plugin Template',
   backgroundColor: '#ffffff',
   textColor: '#000000',
   styling: {
@@ -169,77 +169,121 @@ const Settings: React.FC<SettingsProps> = ({
         </DialogHeader>
 
         {/* Tabs */}
-        <div className="flex space-x-1 border-b border-border">
-          <Button
-            variant={activeTab === 'general' ? 'default' : 'ghost'}
-            size="sm"
+        <div className="flex border-b border-border">
+          <button
+            type="button"
             onClick={() => setActiveTab('general')}
-            className="rounded-b-none"
+            className={`
+              flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
+              ${activeTab === 'general'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }
+            `}
           >
+            <SettingsIcon className="h-4 w-4" />
             General
-          </Button>
-          <Button
-            variant={activeTab === 'styling' ? 'default' : 'ghost'}
-            size="sm"
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab('styling')}
-            className="rounded-b-none gap-2"
+            className={`
+              flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
+              ${activeTab === 'styling'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+              }
+            `}
           >
             <Palette className="h-4 w-4" />
             Styling
-          </Button>
+          </button>
         </div>
 
         {activeTab === 'general' && (
-          <div className="space-y-4 pt-4">
+          <div className="space-y-6 pt-4">
+            {/* Title */}
             <div className="space-y-2">
-              <Label htmlFor="pluginTitle">Title</Label>
+              <Label htmlFor="pluginTitle">Chart Title</Label>
               <Input
                 id="pluginTitle"
                 type="text"
                 value={tempSettings.title || ''}
                 onChange={(e) => setTempSettings((prev) => ({ ...prev, title: e.target.value }))}
-                placeholder="Enter a display title"
+                placeholder="e.g., Acme Corp Organization"
               />
-              <p className="text-sm text-muted-foreground">A simple title displayed by your plugin.</p>
+              <p className="text-sm text-muted-foreground">Displayed in print output and page header.</p>
+            </div>
+
+            {/* Display Settings Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                <Eye className="h-4 w-4" />
+                Display Preferences
+              </h3>
+
+              {/* Dynamic Theming Toggle */}
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <Label className="text-base">Live Theme Preview</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Apply theme changes in real-time while editing settings
+                  </p>
+                </div>
+                <Switch
+                  checked={Boolean(tempSettings.styling?.enableDynamicTheming)}
+                  onCheckedChange={(checked) => setTempSettings((prev) => ({
+                    ...prev,
+                    styling: {
+                      ...(prev.styling || { theme: 'light', customColors: { ...PRESET_THEMES.light.colors } }),
+                      enableDynamicTheming: checked,
+                    },
+                  }))}
+                />
+              </div>
             </div>
           </div>
         )}
 
         {activeTab === 'styling' && (
-          <div className="space-y-4 pt-4">
-            <div className="space-y-2">
-              <Label htmlFor="stylingTheme">Theme</Label>
-              <select
-                id="stylingTheme"
-                value={tempSettings.styling?.theme || 'light'}
-                onChange={(e) => handleThemeChange(e.target.value as 'light' | 'dark' | 'custom')}
-                className="block w-full border rounded px-3 py-2 text-sm bg-background text-foreground"
-              >
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="custom">Custom</option>
-              </select>
-              <p className="text-sm text-muted-foreground">Choose a pre-defined theme or customize colors</p>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="enableDynamicTheming">Enable Dynamic Theming</Label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="enableDynamicTheming"
-                  type="checkbox"
-                  checked={Boolean(tempSettings.styling?.enableDynamicTheming)}
-                  onChange={(e) => setTempSettings((prev) => ({
-                    ...prev,
-                    styling: {
-                      ...(prev.styling || { theme: 'light', customColors: { ...PRESET_THEMES.light.colors } }),
-                      enableDynamicTheming: e.target.checked,
-                    },
-                  }))}
-                />
-                <span className="text-sm">{tempSettings.styling?.enableDynamicTheming ? 'Enabled' : 'Disabled'}</span>
+          <div className="space-y-6 pt-4">
+            {/* Theme Selection */}
+            <div className="space-y-3">
+              <Label>Theme</Label>
+              <div className="grid grid-cols-3 gap-3">
+                {(['light', 'dark', 'custom'] as const).map((theme) => (
+                  <button
+                    key={theme}
+                    type="button"
+                    onClick={() => handleThemeChange(theme)}
+                    className={`
+                      relative flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all
+                      ${tempSettings.styling?.theme === theme
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                      }
+                    `}
+                  >
+                    {/* Theme preview swatch */}
+                    <div className={`w-10 h-10 rounded-lg overflow-hidden border ${theme === 'custom' ? 'bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500' : ''}`}>
+                      {theme === 'light' && (
+                        <div className="w-full h-full bg-white border-b flex items-end">
+                          <div className="w-full h-1/3 bg-gray-100" />
+                        </div>
+                      )}
+                      {theme === 'dark' && (
+                        <div className="w-full h-full bg-gray-900 border-b border-gray-700 flex items-end">
+                          <div className="w-full h-1/3 bg-gray-800" />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium capitalize">{theme}</span>
+                    {tempSettings.styling?.theme === theme && (
+                      <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary" />
+                    )}
+                  </button>
+                ))}
               </div>
-              <p className="text-sm text-muted-foreground">Apply theme changes in real-time while editing</p>
             </div>
 
             {tempSettings.styling?.theme === 'custom' && (

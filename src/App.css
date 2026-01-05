@@ -44,8 +44,8 @@
   z-index: 10;
 }
 
-/* Improve spacing and alignment */
-.org-chart .flex {
+/* Improve spacing and alignment - only for children row, not the org-node itself */
+.org-chart .children-row {
   align-items: flex-start;
 }
 
@@ -54,14 +54,70 @@
   .org-chart {
     padding: 0 1rem;
   }
-  
+
   .org-node .children-container .flex {
     flex-direction: column;
     align-items: center;
     gap: 2rem;
   }
-  
+
   .org-node .children-container .children-horizontal-line {
     display: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  /* Hide non-essential UI elements */
+  .org-chart-container > .mb-4:first-child, /* Search bar */
+  .org-chart-container > .flex.flex-wrap.justify-center, /* Control panel */
+  .org-chart-container > .mb-4:has(.gap-6.text-sm) /* Stats bar */ {
+    display: none !important;
+  }
+
+  /* Reset zoom for printing */
+  .org-chart > div {
+    transform: none !important;
+  }
+
+  /* Full width for print */
+  .org-chart-container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure cards print properly */
+  .org-node {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Remove shadows for cleaner print */
+  .shadow, .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: none !important;
+    border: 1px solid #e5e7eb !important;
+  }
+
+  /* Remove backdrop blur */
+  .backdrop-blur-sm {
+    backdrop-filter: none !important;
+  }
+
+  /* Remove hover effects */
+  * {
+    transition: none !important;
+  }
+
+  /* Hide sidebar */
+  .fixed.right-0 {
+    display: none !important;
+  }
+
+  /* Ensure backgrounds print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

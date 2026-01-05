@@ -207,47 +207,61 @@ const App: React.FC = (): React.JSX.Element => {
   }
 
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
-      style={{ 
+    <div
+      className="h-screen flex flex-col overflow-hidden"
+      style={{
         backgroundColor: String(settings.backgroundColor) || 'white',
         color: String(settings.textColor) || 'black'
       }}
     >
       {config.editMode && (
-        <Button 
+        <Button
           className="absolute top-5 right-5 z-10 gap-2"
           onClick={handleShowSettings}
           size="sm"
+          title="Open plugin settings"
         >
           <SettingsIcon className="h-4 w-4" />
           Settings
         </Button>
       )}
-      
-      <div className="w-full h-screen overflow-auto p-5 box-border">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-semibold mb-2">{settings.title || 'Organization Chart'}</h3>
-            <p className="text-muted-foreground">
-              {users.length} {users.length === 1 ? 'team member' : 'team members'}
-            </p>
-          </div>
-          
-          {users.length > 0 ? (
-            <OrgChart users={users} />
-          ) : (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <h4 className="text-lg font-medium mb-2">No Team Members Found</h4>
-                <p className="text-muted-foreground">
-                  Please check your data source and ensure you have configured the required columns in the plugin settings.
-                  The minimum required column is "Full Name Column".
-                </p>
+
+      {/* Main content - takes remaining height */}
+      <div className="flex-1 overflow-hidden">
+        {users.length > 0 ? (
+          <OrgChart users={users} className="h-full" />
+        ) : (
+          <div className="flex items-center justify-center h-full bg-muted/30">
+            <div className="text-center max-w-md p-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <h4 className="text-lg font-semibold mb-2">No Employees Found</h4>
+              <p className="text-muted-foreground mb-4">
+                We couldn't find any employee data. This usually means the data source isn't connected or the column mapping needs to be configured.
+              </p>
+              <div className="text-left bg-card rounded-lg border p-4 space-y-2">
+                <p className="text-sm font-medium">Quick checklist:</p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">1.</span>
+                    <span>Ensure a data source (worksheet) is connected to this plugin</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">2.</span>
+                    <span>Map the <strong>Full Name</strong> column in Settings</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">3.</span>
+                    <span>Optionally map <strong>Manager</strong> column to build the hierarchy</span>
+                  </li>
+                </ul>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <Settings
