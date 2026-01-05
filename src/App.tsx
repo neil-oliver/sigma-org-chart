@@ -226,14 +226,6 @@ const App: React.FC = (): React.JSX.Element => {
         </Button>
       )}
 
-      {/* Header */}
-      <div className="flex-shrink-0 p-4 text-center border-b">
-        <h3 className="text-xl font-semibold">{settings.title || 'Organization Chart'}</h3>
-        <p className="text-sm text-muted-foreground">
-          {users.length} {users.length === 1 ? 'team member' : 'team members'}
-        </p>
-      </div>
-
       {/* Main content - takes remaining height */}
       <div className="flex-1 overflow-hidden">
         {users.length > 0 ? (

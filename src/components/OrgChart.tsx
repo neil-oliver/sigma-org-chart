@@ -116,7 +116,7 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
           {/* Card content */}
           <div className="relative">
             {useCompactCard ? (
-              <div className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+              <div className={`rounded-lg transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500/70 ring-offset-2 ring-offset-background shadow-lg shadow-blue-500/20' : ''}`}>
                 <CompactUserCard
                   user={node.user}
                   hasChildren={nodeHasChildren}
@@ -173,7 +173,7 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
       ) : (
         /* Normal non-highlighted card */
         useCompactCard ? (
-          <div className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+          <div className={`rounded-lg transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500/70 ring-offset-2 ring-offset-background shadow-lg shadow-blue-500/20' : ''}`}>
             <CompactUserCard
               user={node.user}
               hasChildren={nodeHasChildren}
@@ -193,7 +193,7 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
             onDoubleClick={handleDoubleClick}
             onClick={() => onSelect?.(node.id)}
             title="Click ⋮ for more actions"
-            className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+            className={`rounded-lg transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500/70 ring-offset-2 ring-offset-background shadow-lg shadow-blue-500/20' : ''}`}
           >
             <UserCard
               user={node.user}
@@ -432,6 +432,16 @@ const OrgChart: React.FC<OrgChartProps> = ({
     findNode,
   });
 
+  // Full reset: clear focus, filters, highlight, selection, and reset expand state
+  const handleFullReset = useCallback(() => {
+    setFocusedNodeId(null);
+    setFilters({ orgUnits: [], offices: [], maxLevel: null });
+    setHighlightedUserId(null);
+    setSelectedNodeId(null);
+    setPanPosition({ x: 0, y: 0 });
+    resetToDefaultExpand();
+  }, [resetToDefaultExpand, setSelectedNodeId]);
+
   // Handle search selection - focus on user and expand path
   const handleSearchSelect = useCallback((userId: string) => {
     // Find the node by user name
@@ -466,15 +476,29 @@ const OrgChart: React.FC<OrgChartProps> = ({
       setHighlightedUserId(node.id);
       setSelectedNodeId(node.id);
 
-      // Scroll to the node after a short delay for DOM to update
+      // Center the view on the node after DOM updates
+      // Use a longer delay and calculate pan position to center the element
       setTimeout(() => {
         const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
-        if (nodeElement) {
-          nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        const canvasElement = document.querySelector('.org-chart');
+        if (nodeElement && canvasElement) {
+          const nodeRect = nodeElement.getBoundingClientRect();
+          const canvasRect = canvasElement.getBoundingClientRect();
+
+          // Calculate offset needed to center the node in the viewport
+          const targetX = canvasRect.width / 2 - (nodeRect.left - canvasRect.left + nodeRect.width / 2);
+          const targetY = canvasRect.height / 2 - (nodeRect.top - canvasRect.top + nodeRect.height / 2);
+
+          // Adjust for current pan and zoom
+          const scale = zoomLevel / 100;
+          setPanPosition({
+            x: targetX / scale,
+            y: targetY / scale + 40, // account for paddingTop
+          });
         }
-      }, 100);
+      }, 250); // Longer delay to allow all expansions to render
     }
-  }, [orgTree, getNodePath, isNodeExpanded, toggleExpansion, setSelectedNodeId, focusedNodeId]);
+  }, [orgTree, getNodePath, isNodeExpanded, toggleExpansion, setSelectedNodeId, focusedNodeId, zoomLevel]);
 
   // Dismiss the search highlight
   const handleDismissHighlight = useCallback(() => {
@@ -592,7 +616,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   return (
     <div className={`org-chart-container h-full flex flex-col ${className}`}>
       {/* Row 1: Navigation - Breadcrumb + Search + Unmapped Badge */}
-      <div className="print:hidden flex items-center gap-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="print:hidden flex items-center gap-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 relative z-50">
         {/* Breadcrumb - Left */}
         <div className="flex-shrink-0">
           <Breadcrumb
@@ -642,7 +666,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
           <Button variant="ghost" size="sm" onClick={collapseAllNodes} className="h-8 px-2" title="Collapse all">
             <Minimize2 className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={resetToDefaultExpand} className="h-8 px-2" title="Reset to default">
+          <Button variant="ghost" size="sm" onClick={handleFullReset} className="h-8 px-2" title="Reset all (view, filters, focus)">
             <RotateCcw className="h-4 w-4" />
           </Button>
         </div>
