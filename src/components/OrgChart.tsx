@@ -282,7 +282,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('tree');
 
   // Zoom state
-  const [zoomLevel, setZoomLevel] = useState(100);
+  const [zoomLevel, setZoomLevel] = useState(70);
   const minZoom = 50;
   const maxZoom = 150;
   const zoomStep = 10;
@@ -304,7 +304,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   }, []);
 
   const handleZoomReset = useCallback(() => {
-    setZoomLevel(100);
+    setZoomLevel(70);
     setPanPosition({ x: 0, y: 0 });
   }, []);
 
@@ -432,12 +432,13 @@ const OrgChart: React.FC<OrgChartProps> = ({
     findNode,
   });
 
-  // Full reset: clear focus, filters, highlight, selection, and reset expand state
+  // Full reset: clear focus, filters, highlight, selection, zoom, and reset expand state
   const handleFullReset = useCallback(() => {
     setFocusedNodeId(null);
     setFilters({ orgUnits: [], offices: [], maxLevel: null });
     setHighlightedUserId(null);
     setSelectedNodeId(null);
+    setZoomLevel(70);
     setPanPosition({ x: 0, y: 0 });
     resetToDefaultExpand();
   }, [resetToDefaultExpand, setSelectedNodeId]);
@@ -1036,8 +1037,8 @@ const OrgChart: React.FC<OrgChartProps> = ({
             </div>
           )}
 
-          {/* Help hints at top */}
-          <div className="print:hidden absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">
+          {/* Help hints at top right */}
+          <div className="print:hidden absolute top-3 right-3 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">
             <span><Move className="inline h-3 w-3 mr-1" />Drag to pan</span>
             <span className="text-muted-foreground/50">•</span>
             <span>Double-click to zoom</span>
