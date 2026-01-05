@@ -207,15 +207,15 @@ const App: React.FC = (): React.JSX.Element => {
   }
 
   return (
-    <div 
-      className="min-h-screen relative overflow-hidden"
-      style={{ 
+    <div
+      className="h-screen flex flex-col overflow-hidden"
+      style={{
         backgroundColor: String(settings.backgroundColor) || 'white',
         color: String(settings.textColor) || 'black'
       }}
     >
       {config.editMode && (
-        <Button 
+        <Button
           className="absolute top-5 right-5 z-10 gap-2"
           onClick={handleShowSettings}
           size="sm"
@@ -224,30 +224,30 @@ const App: React.FC = (): React.JSX.Element => {
           Settings
         </Button>
       )}
-      
-      <div className="w-full h-screen overflow-auto p-5 box-border">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-8">
-            <h3 className="text-2xl font-semibold mb-2">{settings.title || 'Organization Chart'}</h3>
-            <p className="text-muted-foreground">
-              {users.length} {users.length === 1 ? 'team member' : 'team members'}
-            </p>
-          </div>
-          
-          {users.length > 0 ? (
-            <OrgChart users={users} />
-          ) : (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center">
-                <h4 className="text-lg font-medium mb-2">No Team Members Found</h4>
-                <p className="text-muted-foreground">
-                  Please check your data source and ensure you have configured the required columns in the plugin settings.
-                  The minimum required column is "Full Name Column".
-                </p>
-              </div>
+
+      {/* Header */}
+      <div className="flex-shrink-0 p-4 text-center border-b">
+        <h3 className="text-xl font-semibold">{settings.title || 'Organization Chart'}</h3>
+        <p className="text-sm text-muted-foreground">
+          {users.length} {users.length === 1 ? 'team member' : 'team members'}
+        </p>
+      </div>
+
+      {/* Main content - takes remaining height */}
+      <div className="flex-1 overflow-hidden">
+        {users.length > 0 ? (
+          <OrgChart users={users} className="h-full" />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <h4 className="text-lg font-medium mb-2">No Team Members Found</h4>
+              <p className="text-muted-foreground">
+                Please check your data source and ensure you have configured the required columns in the plugin settings.
+                The minimum required column is "Full Name Column".
+              </p>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       <Settings

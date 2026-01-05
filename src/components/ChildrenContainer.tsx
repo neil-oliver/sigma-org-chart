@@ -36,8 +36,7 @@ const ChildrenContainer: React.FC<ChildrenContainerProps> = ({
               <div
                 className="h-0.5 bg-border"
                 style={{
-                  width: `calc(100% - 80px)`,
-                  maxWidth: `${Math.min(childCount * 180, 800)}px`
+                  width: `calc(100% - 40px)`,
                 }}
               />
             </div>
@@ -56,10 +55,10 @@ const ChildrenContainer: React.FC<ChildrenContainerProps> = ({
 
       {/* Children row with individual drop lines */}
       <div className="relative">
-        {/* Children grid with flex-wrap */}
+        {/* Children in horizontal row - no wrap for tree visualization */}
         <div
           className="
-            flex flex-wrap
+            flex
             justify-center
             gap-4
             pt-2

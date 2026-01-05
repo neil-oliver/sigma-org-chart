@@ -50,8 +50,8 @@ export interface UseOrgChartReturn {
 }
 
 const DEFAULT_OPTIONS: UseOrgChartOptions = {
-  initialExpandDepth: 2,
-  cardSizeMode: 'compact',
+  initialExpandDepth: 1, // Just root expanded, showing first-level direct reports
+  cardSizeMode: 'standard',
 };
 
 /**

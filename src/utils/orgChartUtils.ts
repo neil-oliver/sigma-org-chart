@@ -309,3 +309,62 @@ export function validateOrgData(users: UserData[]): ValidationResult {
     }
   };
 }
+
+/**
+ * Categorize users into properly mapped (in tree) vs unmapped
+ * Unmapped = has a manager field that doesn't match any user's fullName
+ */
+export interface MappingResult {
+  /** Users that form a proper tree (root + all descendants) */
+  mappedUsers: UserData[];
+  /** Users whose manager doesn't exist in the dataset */
+  unmappedUsers: UserData[];
+  /** The true root(s) - users with no manager or empty manager */
+  trueRoots: UserData[];
+}
+
+export function categorizeMappedUsers(users: UserData[]): MappingResult {
+  const userNames = new Set(users.map(u => u.fullName));
+
+  // True roots: no manager at all (empty string, null, undefined)
+  const trueRoots = users.filter(u => !u.manager || u.manager.trim() === '');
+
+  // Unmapped: has a manager but that manager doesn't exist in dataset
+  const unmappedUsers = users.filter(u =>
+    u.manager &&
+    u.manager.trim() !== '' &&
+    !userNames.has(u.manager)
+  );
+
+  // Build set of all users reachable from true roots
+  const mappedSet = new Set<string>();
+
+  // Create quick lookup of children by manager
+  const childrenByManager = new Map<string, UserData[]>();
+  users.forEach(user => {
+    if (user.manager && userNames.has(user.manager)) {
+      const children = childrenByManager.get(user.manager) || [];
+      children.push(user);
+      childrenByManager.set(user.manager, children);
+    }
+  });
+
+  // BFS from true roots to find all mapped users
+  const queue = [...trueRoots];
+  while (queue.length > 0) {
+    const user = queue.shift()!;
+    if (mappedSet.has(user.fullName)) continue;
+    mappedSet.add(user.fullName);
+
+    const children = childrenByManager.get(user.fullName) || [];
+    queue.push(...children);
+  }
+
+  const mappedUsers = users.filter(u => mappedSet.has(u.fullName));
+
+  return {
+    mappedUsers,
+    unmappedUsers,
+    trueRoots,
+  };
+}

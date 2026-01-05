@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback, useMemo } from 'react';
 import { Button } from './ui/button';
-import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, RotateCw, Printer, BarChart3 } from 'lucide-react';
+import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, Printer, BarChart3, Move } from 'lucide-react';
 import UserCard from './UserCard';
 import CompactUserCard from './CompactUserCard';
 import ChildrenContainer from './ChildrenContainer';
@@ -9,15 +9,16 @@ import SearchBar from './SearchBar';
 import FilterPanel, { FilterState } from './FilterPanel';
 import DetailSidebar from './DetailSidebar';
 import OrgAnalytics from './OrgAnalytics';
+import Minimap from './Minimap';
 import { UserData, CardSizeMode } from '../types';
 import { useOrgChart } from '../hooks/useOrgChart';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
-import { OrgNode } from '../utils/orgChartUtils';
+import { OrgNode, categorizeMappedUsers } from '../utils/orgChartUtils';
 
 interface OrgChartProps {
   users: UserData[];
   className?: string;
-  /** Initial expand depth (default: 2) */
+  /** Initial expand depth (default: 1 = root + direct reports visible) */
   initialExpandDepth?: number;
 }
 
@@ -161,8 +162,12 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
 const OrgChart: React.FC<OrgChartProps> = ({
   users,
   className = '',
-  initialExpandDepth = 2,
+  initialExpandDepth = 1,
 }) => {
+  // Categorize users into mapped vs unmapped FIRST
+  const { mappedUsers, unmappedUsers } = useMemo(() => categorizeMappedUsers(users), [users]);
+
+  // Build org tree from ONLY mapped users
   const {
     orgTree,
     toggleExpansion,
@@ -177,7 +182,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
     setCardSizeMode,
     findNode,
     getNodePath,
-  } = useOrgChart(users, { initialExpandDepth });
+  } = useOrgChart(mappedUsers, { initialExpandDepth });
 
   // Focus state - which subtree to show (null = show all)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -187,11 +192,19 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const [showFilters, setShowFilters] = useState(false);
   const [highlightedUserId, setHighlightedUserId] = useState<string | null>(null);
 
+  // View mode: org chart or unmapped employees
+  const [viewMode, setViewMode] = useState<'chart' | 'unmapped'>('chart');
+
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(100);
   const minZoom = 50;
   const maxZoom = 150;
   const zoomStep = 10;
+
+  // Pan state
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
 
   // Analytics panel state
   const [showAnalytics, setShowAnalytics] = useState(false);
@@ -206,6 +219,38 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
   const handleZoomReset = useCallback(() => {
     setZoomLevel(100);
+    setPanPosition({ x: 0, y: 0 });
+  }, []);
+
+  // Pan handlers
+  const handlePanStart = useCallback((e: React.MouseEvent) => {
+    if (e.button === 0) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y });
+    }
+  }, [panPosition]);
+
+  const handlePanMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      setPanPosition({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+    }
+  }, [isPanning, panStart]);
+
+  const handlePanEnd = useCallback(() => {
+    setIsPanning(false);
+  }, []);
+
+  // Mouse wheel zoom - use deltaY magnitude for smoother trackpad support
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      // Scale delta based on actual scroll amount, clamped for smoothness
+      const scrollDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.1, 5);
+      setZoomLevel(z => Math.round(Math.max(minZoom, Math.min(maxZoom, z - scrollDelta))));
+    }
   }, []);
 
   // Print handler
@@ -312,10 +357,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
     }
   }, [orgTree, getNodePath, isNodeExpanded, toggleExpansion, setSelectedNodeId]);
 
-  const toggleCardSize = () => {
-    setCardSizeMode(cardSizeMode === 'compact' ? 'standard' : 'compact');
-  };
-
   // Check if filters are active
   const hasActiveFilters = filters.orgUnits.length > 0 || filters.offices.length > 0 || filters.maxLevel !== null;
 
@@ -337,10 +378,12 @@ const OrgChart: React.FC<OrgChartProps> = ({
     countVisible(nodesToRender);
     return {
       total: users.length,
+      mapped: mappedUsers.length,
+      unmapped: unmappedUsers.length,
       visible: visibleCount,
-      focused: focusedNode ? getNodeDescendantCount(focusedNode.id) + 1 : users.length,
+      focused: focusedNode ? getNodeDescendantCount(focusedNode.id) + 1 : mappedUsers.length,
     };
-  }, [users.length, orgTree.length, nodesToRender, isNodeExpanded, focusedNode, getNodeDescendantCount]);
+  }, [users.length, mappedUsers.length, unmappedUsers.length, orgTree.length, nodesToRender, isNodeExpanded, focusedNode, getNodeDescendantCount]);
 
   // Performance warning threshold
   const visibleNodeWarningThreshold = 200;
@@ -360,45 +403,177 @@ const OrgChart: React.FC<OrgChartProps> = ({
   }
 
   return (
-    <div className={`org-chart-container ${className}`}>
-      {/* Performance Warning */}
-      {showPerformanceWarning && (
-        <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-center">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            ⚠️ Showing {stats.visible} nodes may impact performance. Consider using filters or focusing on a subtree.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={collapseAllNodes}
-            className="mt-2"
-          >
-            Collapse All
+    <div className={`org-chart-container h-full flex flex-col ${className}`}>
+      {/* Row 1: Navigation - Breadcrumb + Search + Unmapped Badge */}
+      <div className="flex items-center gap-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* Breadcrumb - Left */}
+        <div className="flex-shrink-0">
+          <Breadcrumb
+            path={focusPath}
+            focusedNodeId={focusedNodeId}
+            onNavigate={handleBreadcrumbNavigate}
+          />
+        </div>
+
+        {/* Search - Center/Flexible */}
+        <div className="flex-1 max-w-sm">
+          <SearchBar
+            users={mappedUsers}
+            onSelectUser={handleSearchSelect}
+            placeholder="Search employees..."
+          />
+        </div>
+
+        {/* Stats & Unmapped - Right */}
+        <div className="flex items-center gap-3 text-sm">
+          <span className="text-muted-foreground">
+            <span className="font-medium text-foreground">{stats.mapped}</span> mapped
+          </span>
+          {(stats.unmapped ?? 0) > 0 && (
+            <button
+              onClick={() => setViewMode(viewMode === 'unmapped' ? 'chart' : 'unmapped')}
+              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors ${
+                viewMode === 'unmapped'
+                  ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+              }`}
+            >
+              <span className="font-medium">{stats.unmapped}</span>
+              <span>unmapped</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Row 2: Tools */}
+      <div className="flex items-center gap-1 px-4 py-2 border-b bg-muted/30">
+        {/* Expand/Collapse Group */}
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={expandAllNodes} className="h-8 px-2" title="Expand all">
+            <Maximize2 className="h-4 w-4" />
           </Button>
+          <Button variant="ghost" size="sm" onClick={collapseAllNodes} className="h-8 px-2" title="Collapse all">
+            <Minimize2 className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={resetToDefaultExpand} className="h-8 px-2" title="Reset to default">
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-2" />
+
+        {/* Card Size Tabs */}
+        <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/50">
+          <button
+            onClick={() => setCardSizeMode('standard')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+              cardSizeMode === 'standard'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <LayoutList className="h-3.5 w-3.5" />
+            Standard
+          </button>
+          <button
+            onClick={() => setCardSizeMode('compact')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+              cardSizeMode === 'compact'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <LayoutGrid className="h-3.5 w-3.5" />
+            Compact
+          </button>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-2" />
+
+        {/* Filters */}
+        <Button
+          variant={showFilters ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setShowFilters(!showFilters)}
+          className="h-8 px-2 gap-1.5"
+          title="Toggle filters"
+        >
+          <Filter className="h-4 w-4" />
+          {hasActiveFilters && <span className="w-1.5 h-1.5 bg-primary rounded-full" />}
+        </Button>
+
+        {focusedNodeId && (
+          <>
+            <div className="w-px h-5 bg-border mx-2" />
+            <Button variant="ghost" size="sm" onClick={clearFocus} className="h-8 px-2 gap-1.5 text-primary">
+              <Focus className="h-4 w-4" />
+              <span className="text-xs">Exit Focus</span>
+            </Button>
+          </>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Zoom Controls */}
+        <div className="flex items-center gap-0.5">
+          <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoomLevel <= minZoom} className="h-8 w-8 p-0" title="Zoom out">
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <button
+            onClick={handleZoomReset}
+            className="text-xs text-muted-foreground hover:text-foreground w-10 text-center"
+            title="Reset zoom"
+          >
+            {zoomLevel}%
+          </button>
+          <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoomLevel >= maxZoom} className="h-8 w-8 p-0" title="Zoom in">
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-2" />
+
+        {/* Analytics & Print */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant={showAnalytics ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setShowAnalytics(!showAnalytics)}
+            className="h-8 w-8 p-0"
+            title="Analytics"
+          >
+            <BarChart3 className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={handlePrint} className="h-8 w-8 p-0" title="Print">
+            <Printer className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Keyboard hint */}
+        {isKeyboardActive && (
+          <div className="hidden lg:flex items-center gap-1 ml-2 text-xs text-muted-foreground">
+            <Keyboard className="h-3 w-3" />
+            <span>↑↓←→ Nav</span>
+          </div>
+        )}
+      </div>
+
+      {/* Performance Warning - only show when needed */}
+      {showPerformanceWarning && (
+        <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-center">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+            ⚠️ Showing {stats.visible} nodes may impact performance.
+            <Button variant="link" size="sm" onClick={collapseAllNodes} className="text-yellow-800 dark:text-yellow-200 underline ml-1 h-auto p-0">
+              Collapse all
+            </Button>
+          </p>
         </div>
       )}
 
-      {/* Search Bar */}
-      <div className="mb-4 max-w-md mx-auto">
-        <SearchBar
-          users={users}
-          onSelectUser={handleSearchSelect}
-          placeholder="Search employees..."
-        />
-      </div>
-
-      {/* Breadcrumb Navigation */}
-      <div className="mb-4">
-        <Breadcrumb
-          path={focusPath}
-          focusedNodeId={focusedNodeId}
-          onNavigate={handleBreadcrumbNavigate}
-        />
-      </div>
-
-      {/* Filter Panel (collapsible) */}
+      {/* Filter Panel - slides in below toolbar */}
       {showFilters && (
-        <div className="mb-4 p-3 bg-muted/30 rounded-lg max-w-2xl mx-auto">
+        <div className="px-4 py-3 border-b bg-muted/20">
           <FilterPanel
             users={users}
             filters={filters}
@@ -408,195 +583,134 @@ const OrgChart: React.FC<OrgChartProps> = ({
         </div>
       )}
 
-      {/* Stats Summary Bar */}
-      <div className="mb-4 flex justify-center gap-6 text-sm text-muted-foreground">
-        <span>
-          <span className="font-medium text-foreground">{stats.total}</span> total employees
-        </span>
-        {focusedNode && (
-          <span>
-            <span className="font-medium text-foreground">{stats.focused}</span> in subtree
-          </span>
-        )}
-        <span>
-          <span className="font-medium text-foreground">{stats.visible}</span> visible
-        </span>
-      </div>
-
-      {/* Control Panel */}
-      <div className="flex flex-wrap justify-center items-center gap-2 mb-6 p-3 bg-muted/30 rounded-lg">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={expandAllNodes}
-          className="gap-2"
-        >
-          <Maximize2 className="h-4 w-4" />
-          Expand All
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={collapseAllNodes}
-          className="gap-2"
-        >
-          <Minimize2 className="h-4 w-4" />
-          Collapse All
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={resetToDefaultExpand}
-          className="gap-2"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Reset
-        </Button>
-        <div className="w-px h-6 bg-border mx-1" />
-        <Button
-          variant={cardSizeMode === 'compact' ? 'default' : 'outline'}
-          size="sm"
-          onClick={toggleCardSize}
-          className="gap-2"
-        >
-          {cardSizeMode === 'compact' ? (
-            <>
-              <LayoutGrid className="h-4 w-4" />
-              Compact
-            </>
-          ) : (
-            <>
-              <LayoutList className="h-4 w-4" />
-              Standard
-            </>
-          )}
-        </Button>
-        <Button
-          variant={showFilters ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          className="gap-2"
-        >
-          <Filter className="h-4 w-4" />
-          Filters
-          {hasActiveFilters && <span className="ml-1 text-xs bg-primary-foreground text-primary rounded-full px-1.5">!</span>}
-        </Button>
-        {focusedNodeId && (
-          <>
-            <div className="w-px h-6 bg-border mx-1" />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearFocus}
-              className="gap-2"
-            >
-              <Focus className="h-4 w-4" />
-              Exit Focus
-            </Button>
-          </>
-        )}
-        {isKeyboardActive && (
-          <>
-            <div className="w-px h-6 bg-border mx-1" />
-            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Keyboard className="h-3 w-3" />
-              <span className="hidden sm:inline">↑↓←→ Navigate | Enter Expand | Space Focus | Esc Exit</span>
-            </div>
-          </>
-        )}
-        <div className="w-px h-6 bg-border mx-1" />
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleZoomOut}
-            disabled={zoomLevel <= minZoom}
-            className="h-8 w-8 p-0"
-            title="Zoom out"
-          >
-            <ZoomOut className="h-4 w-4" />
-          </Button>
-          <span className="text-xs text-muted-foreground w-12 text-center">{zoomLevel}%</span>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleZoomIn}
-            disabled={zoomLevel >= maxZoom}
-            className="h-8 w-8 p-0"
-            title="Zoom in"
-          >
-            <ZoomIn className="h-4 w-4" />
-          </Button>
-          {zoomLevel !== 100 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleZoomReset}
-              className="h-8 w-8 p-0"
-              title="Reset zoom"
-            >
-              <RotateCw className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-        <div className="w-px h-6 bg-border mx-1" />
-        <Button
-          variant={showAnalytics ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setShowAnalytics(!showAnalytics)}
-          className="gap-2"
-          title="Show analytics"
-        >
-          <BarChart3 className="h-4 w-4" />
-          <span className="hidden sm:inline">Analytics</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handlePrint}
-          className="gap-2"
-          title="Print org chart"
-        >
-          <Printer className="h-4 w-4" />
-          <span className="hidden sm:inline">Print</span>
-        </Button>
-      </div>
-
       {/* Analytics Panel */}
-      {showAnalytics && (
+      {showAnalytics && viewMode === 'chart' && (
         <div className="mb-4">
           <OrgAnalytics orgTree={orgTree} totalUsers={users.length} />
         </div>
       )}
 
-      {/* Organization Chart - vertical scroll, no horizontal scroll */}
-      <div className="org-chart overflow-y-auto overflow-x-auto">
-        <div
-          className="flex flex-wrap justify-center items-start gap-6 pb-8 transition-transform duration-200 origin-top"
-          style={{ transform: `scale(${zoomLevel / 100})` }}
-        >
-          {nodesToRender.map((node) => (
-            <OrgNodeComponent
-              key={node.id}
-              node={node}
-              isExpanded={isNodeExpanded(node.id)}
-              onToggleExpand={toggleExpansion}
-              onFocus={handleFocus}
-              getNodeDescendantCount={getNodeDescendantCount}
-              getDirectChildCount={getDirectChildCount}
-              hasChildren={hasChildren}
-              isNodeExpanded={isNodeExpanded}
-              cardSizeMode={cardSizeMode}
-              isFocusedRoot={focusedNodeId === node.id}
-              selectedNodeId={selectedNodeId}
-              onSelect={setSelectedNodeId}
-              highlightedNodeId={highlightedUserId}
-              onOpenDetail={handleOpenDetail}
-            />
-          ))}
+      {/* Unmapped Employees View */}
+      {viewMode === 'unmapped' && (
+        <div className="flex-1 overflow-auto p-4">
+          {unmappedUsers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="text-4xl mb-4">✓</div>
+              <h3 className="text-lg font-medium mb-2">All Employees Mapped</h3>
+              <p className="text-muted-foreground max-w-md">
+                Every employee in your dataset has a valid manager reference that exists in the data.
+              </p>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  <strong>{unmappedUsers.length}</strong> employee{unmappedUsers.length !== 1 ? 's' : ''} have manager values that don't match any employee name in the dataset.
+                </p>
+              </div>
+              <div className="grid gap-3">
+                {unmappedUsers.map((user) => (
+                  <div
+                    key={user.fullName}
+                    className="p-4 bg-card border border-border rounded-lg flex items-center gap-4"
+                  >
+                    {user.profileImage ? (
+                      <img
+                        src={user.profileImage}
+                        alt={user.fullName}
+                        className="w-12 h-12 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-lg font-medium">
+                        {user.fullName.charAt(0)}
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{user.fullName}</div>
+                      <div className="text-sm text-muted-foreground truncate">{user.jobTitle || 'No title'}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">Manager listed as:</div>
+                      <div className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                        "{user.manager || '(empty)'}"
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
+
+      {/* Organization Chart - Infinite Canvas */}
+      {viewMode === 'chart' && (
+        <div
+          className="org-chart relative flex-1 overflow-hidden"
+          style={{
+            background: 'linear-gradient(hsl(var(--muted) / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--muted) / 0.3) 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          }}
+          onMouseDown={handlePanStart}
+          onMouseMove={handlePanMove}
+          onMouseUp={handlePanEnd}
+          onMouseLeave={handlePanEnd}
+          onWheel={handleWheel}
+        >
+          {/* Canvas content - absolutely positioned for infinite panning */}
+          <div
+            className="absolute"
+            style={{
+              left: '50%',
+              top: '40px',
+              transform: `translate(calc(-50% + ${panPosition.x}px), ${panPosition.y}px) scale(${zoomLevel / 100})`,
+              transformOrigin: 'top center',
+              cursor: isPanning ? 'grabbing' : 'grab',
+              transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+            }}
+          >
+            <div className="flex flex-col items-center">
+              {nodesToRender.map((node) => (
+                <OrgNodeComponent
+                  key={node.id}
+                  node={node}
+                  isExpanded={isNodeExpanded(node.id)}
+                  onToggleExpand={toggleExpansion}
+                  onFocus={handleFocus}
+                  getNodeDescendantCount={getNodeDescendantCount}
+                  getDirectChildCount={getDirectChildCount}
+                  hasChildren={hasChildren}
+                  isNodeExpanded={isNodeExpanded}
+                  cardSizeMode={cardSizeMode}
+                  isFocusedRoot={focusedNodeId === node.id}
+                  selectedNodeId={selectedNodeId}
+                  onSelect={setSelectedNodeId}
+                  highlightedNodeId={highlightedUserId}
+                  onOpenDetail={handleOpenDetail}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Minimap */}
+          <div className="absolute bottom-4 right-4 z-10">
+            <Minimap
+              orgTree={orgTree}
+              isNodeExpanded={isNodeExpanded}
+              highlightedNodeId={selectedNodeId || highlightedUserId}
+              onNodeClick={(nodeId) => {
+                setSelectedNodeId(nodeId);
+              }}
+            />
+          </div>
+
+          {/* Pan hint */}
+          <div className="absolute bottom-4 left-4 text-xs text-muted-foreground bg-background/80 backdrop-blur px-2 py-1 rounded pointer-events-none">
+            <Move className="inline h-3 w-3 mr-1" />
+            Drag to pan • Ctrl+scroll to zoom
+          </div>
+        </div>
+      )}
 
       {/* Detail Sidebar */}
       {selectedDetailNode && (
