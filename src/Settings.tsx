@@ -59,7 +59,6 @@ const PRESET_THEMES: Record<string, { name: string; colors: Record<string, strin
 };
 
 export const DEFAULT_SETTINGS: PluginSettings = {
-  title: 'Sigma Plugin Template',
   backgroundColor: '#ffffff',
   textColor: '#000000',
   styling: {

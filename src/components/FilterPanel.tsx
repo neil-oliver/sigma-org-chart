@@ -77,7 +77,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
           Filters
         </div>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-6 text-xs">
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-6 text-xs" title="Clear all filters">
             <X className="h-3 w-3 mr-1" />
             Clear all
           </Button>

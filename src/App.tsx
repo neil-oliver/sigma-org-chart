@@ -219,6 +219,7 @@ const App: React.FC = (): React.JSX.Element => {
           className="absolute top-5 right-5 z-10 gap-2"
           onClick={handleShowSettings}
           size="sm"
+          title="Open plugin settings"
         >
           <SettingsIcon className="h-4 w-4" />
           Settings

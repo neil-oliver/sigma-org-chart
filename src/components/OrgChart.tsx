@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback, useMemo } from 'react';
 import { Button } from './ui/button';
-import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, Printer, BarChart3, Move } from 'lucide-react';
+import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, Printer, BarChart3, Move, Network, GitBranch, ChevronUp, ChevronDown, Crosshair } from 'lucide-react';
 import UserCard from './UserCard';
 import CompactUserCard from './CompactUserCard';
 import ChildrenContainer from './ChildrenContainer';
@@ -10,10 +10,13 @@ import FilterPanel, { FilterState } from './FilterPanel';
 import DetailSidebar from './DetailSidebar';
 import OrgAnalytics from './OrgAnalytics';
 import Minimap from './Minimap';
+import RadialOrgChart from './RadialOrgChart';
 import { UserData, CardSizeMode } from '../types';
 import { useOrgChart } from '../hooks/useOrgChart';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
 import { OrgNode, categorizeMappedUsers } from '../utils/orgChartUtils';
+
+export type LayoutMode = 'tree' | 'radial';
 
 interface OrgChartProps {
   users: UserData[];
@@ -41,6 +44,10 @@ interface OrgNodeComponentProps {
   highlightedNodeId?: string | null;
   /** Open detail sidebar */
   onOpenDetail?: (nodeId: string) => void;
+  /** Focus on this node's team (from search highlight) */
+  onFocusTeam?: (nodeId: string) => void;
+  /** Dismiss the search highlight */
+  onDismissHighlight?: () => void;
 }
 
 /**
@@ -61,6 +68,8 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
   onSelect,
   highlightedNodeId,
   onOpenDetail,
+  onFocusTeam,
+  onDismissHighlight,
 }) => {
   const nodeHasChildren = hasChildren(node.id);
   const directChildCount = getDirectChildCount(node.id);
@@ -88,44 +97,110 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
   // Right-click or long-press to open detail
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent bubbling to parent nodes
     onOpenDetail?.(node.id);
   };
 
   return (
     <div
-      className={`org-node flex flex-col items-center ${isSelected ? 'ring-2 ring-primary ring-offset-2 rounded-lg' : ''} ${isHighlighted ? 'animate-pulse' : ''}`}
+      className="org-node flex flex-col items-center"
       onContextMenu={handleContextMenu}
+      data-node-id={node.id}
     >
-      {/* User Card - Compact or Standard based on mode */}
-      {useCompactCard ? (
-        <CompactUserCard
-          user={node.user}
-          hasChildren={nodeHasChildren}
-          childCount={directChildCount}
-          isExpanded={isExpanded}
-          onClick={handleExpandClick}
-          onDoubleClick={handleDoubleClick}
-          level={node.level}
-          showLevelBadge={true}
-          isHighlighted={isSelected || isHighlighted}
-        />
-      ) : (
-        <div
-          onDoubleClick={handleDoubleClick}
-          onClick={() => onSelect?.(node.id)}
-          title={nodeHasChildren ? "Double-click to focus | Right-click for details" : "Right-click for details"}
-          className={isHighlighted ? 'ring-2 ring-yellow-400 ring-offset-2 rounded-lg' : ''}
-        >
-          <UserCard
-            user={node.user}
-            hasChildren={nodeHasChildren}
-            childCount={totalDescendantCount}
-            visibleChildCount={directChildCount}
-            isExpanded={isExpanded}
-            level={node.level}
-            onToggleExpand={handleExpandClick}
-          />
+      {/* Highlight wrapper with action buttons when this node is highlighted from search */}
+      {isHighlighted ? (
+        <div className="relative">
+          {/* Dashed highlight border */}
+          <div className="absolute -inset-3 border-2 border-dashed border-yellow-400 rounded-xl bg-yellow-50/50 dark:bg-yellow-900/20 pointer-events-none" />
+
+          {/* Card content */}
+          <div className="relative">
+            {useCompactCard ? (
+              <div className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+                <CompactUserCard
+                  user={node.user}
+                  hasChildren={nodeHasChildren}
+                  childCount={directChildCount}
+                  isExpanded={isExpanded}
+                  onClick={handleExpandClick}
+                  onDoubleClick={handleDoubleClick}
+                  level={node.level}
+                  showLevelBadge={true}
+                  isHighlighted={isSelected || isHighlighted}
+                />
+              </div>
+            ) : (
+              <div
+                onDoubleClick={handleDoubleClick}
+                onClick={() => onSelect?.(node.id)}
+                title={nodeHasChildren ? "Double-click to focus | Right-click for details" : "Right-click for details"}
+                className="rounded-lg transition-shadow"
+              >
+                <UserCard
+                  user={node.user}
+                  hasChildren={nodeHasChildren}
+                  childCount={totalDescendantCount}
+                  visibleChildCount={directChildCount}
+                  isExpanded={isExpanded}
+                  level={node.level}
+                  onToggleExpand={handleExpandClick}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons below the card */}
+          <div className="relative flex items-center justify-center gap-2 mt-2 -mb-1">
+            {nodeHasChildren && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onFocusTeam?.(node.id); }}
+                className="px-3 py-1.5 text-xs font-medium bg-primary text-primary-foreground rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                Focus on team ({totalDescendantCount})
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onDismissHighlight?.(); }}
+              className="px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-full hover:bg-muted/80 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
+      ) : (
+        /* Normal non-highlighted card */
+        useCompactCard ? (
+          <div className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}>
+            <CompactUserCard
+              user={node.user}
+              hasChildren={nodeHasChildren}
+              childCount={directChildCount}
+              isExpanded={isExpanded}
+              onClick={handleExpandClick}
+              onDoubleClick={handleDoubleClick}
+              level={node.level}
+              showLevelBadge={true}
+              isHighlighted={isSelected}
+            />
+          </div>
+        ) : (
+          <div
+            onDoubleClick={handleDoubleClick}
+            onClick={() => onSelect?.(node.id)}
+            title={nodeHasChildren ? "Double-click to focus | Right-click for details" : "Right-click for details"}
+            className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
+          >
+            <UserCard
+              user={node.user}
+              hasChildren={nodeHasChildren}
+              childCount={totalDescendantCount}
+              visibleChildCount={directChildCount}
+              isExpanded={isExpanded}
+              level={node.level}
+              onToggleExpand={handleExpandClick}
+            />
+          </div>
+        )
       )}
 
       {/* Children Container with flex-wrap */}
@@ -151,6 +226,8 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
               onSelect={onSelect}
               highlightedNodeId={highlightedNodeId}
               onOpenDetail={onOpenDetail}
+              onFocusTeam={onFocusTeam}
+              onDismissHighlight={onDismissHighlight}
             />
           ))}
         </ChildrenContainer>
@@ -194,6 +271,9 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
   // View mode: org chart or unmapped employees
   const [viewMode, setViewMode] = useState<'chart' | 'unmapped'>('chart');
+
+  // Layout mode: tree or radial
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>('tree');
 
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(100);
@@ -250,6 +330,17 @@ const OrgChart: React.FC<OrgChartProps> = ({
       // Scale delta based on actual scroll amount, clamped for smoothness
       const scrollDelta = Math.sign(e.deltaY) * Math.min(Math.abs(e.deltaY) * 0.1, 5);
       setZoomLevel(z => Math.round(Math.max(minZoom, Math.min(maxZoom, z - scrollDelta))));
+    }
+  }, []);
+
+  // Double-click to zoom in/out
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    // Shift+double-click to zoom out, regular double-click to zoom in
+    if (e.shiftKey) {
+      setZoomLevel(z => Math.max(z - zoomStep * 2, minZoom));
+    } else {
+      setZoomLevel(z => Math.min(z + zoomStep * 2, maxZoom));
     }
   }, []);
 
@@ -317,7 +408,14 @@ const OrgChart: React.FC<OrgChartProps> = ({
   }, []);
 
   // Keyboard navigation
-  const { selectedNodeId, setSelectedNodeId, isKeyboardActive } = useKeyboardNavigation({
+  const {
+    selectedNodeId,
+    setSelectedNodeId,
+    isKeyboardActive,
+    goToParent,
+    goToChild,
+    focusOnSelected,
+  } = useKeyboardNavigation({
     orgTree: focusedNode ? [focusedNode] : orgTree,
     isNodeExpanded,
     toggleExpansion,
@@ -342,6 +440,14 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
     const node = findNodeByName(orgTree);
     if (node) {
+      // Clear any existing focus/breadcrumb first
+      if (focusedNodeId) {
+        setFocusedNodeId(null);
+      }
+
+      // Reset pan position to center
+      setPanPosition({ x: 0, y: 0 });
+
       // Expand path to node
       const path = getNodePath(node.id);
       path.forEach(p => {
@@ -349,13 +455,49 @@ const OrgChart: React.FC<OrgChartProps> = ({
           toggleExpansion(p.id);
         }
       });
+
       // Highlight the node
       setHighlightedUserId(node.id);
       setSelectedNodeId(node.id);
-      // Clear highlight after 3 seconds
-      setTimeout(() => setHighlightedUserId(null), 3000);
+
+      // Scroll to the node after a short delay for DOM to update
+      setTimeout(() => {
+        const nodeElement = document.querySelector(`[data-node-id="${node.id}"]`);
+        if (nodeElement) {
+          nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        }
+      }, 100);
     }
-  }, [orgTree, getNodePath, isNodeExpanded, toggleExpansion, setSelectedNodeId]);
+  }, [orgTree, getNodePath, isNodeExpanded, toggleExpansion, setSelectedNodeId, focusedNodeId]);
+
+  // Dismiss the search highlight
+  const handleDismissHighlight = useCallback(() => {
+    setHighlightedUserId(null);
+  }, []);
+
+  // Focus on a node's team from search highlight
+  const handleFocusTeam = useCallback((nodeId: string) => {
+    setFocusedNodeId(nodeId);
+    setHighlightedUserId(null);
+
+    // Reset pan position to center
+    setPanPosition({ x: 0, y: 0 });
+
+    // Expand the focused node's direct children
+    const node = findNode(nodeId);
+    if (node) {
+      // Expand the focused node itself
+      if (!isNodeExpanded(nodeId)) {
+        toggleExpansion(nodeId);
+      }
+      // Expand first level children
+      node.children.forEach(child => {
+        if (!isNodeExpanded(child.id) && hasChildren(child.id)) {
+          toggleExpansion(child.id);
+        }
+      });
+    }
+  }, [findNode, isNodeExpanded, toggleExpansion, hasChildren]);
 
   // Check if filters are active
   const hasActiveFilters = filters.orgUnits.length > 0 || filters.offices.length > 0 || filters.maxLevel !== null;
@@ -466,6 +608,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
         <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/50">
           <button
             onClick={() => setCardSizeMode('standard')}
+            title="Standard card size - shows more details"
             className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
               cardSizeMode === 'standard'
                 ? 'bg-background text-foreground shadow-sm'
@@ -477,6 +620,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
           </button>
           <button
             onClick={() => setCardSizeMode('compact')}
+            title="Compact card size - fits more nodes"
             className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
               cardSizeMode === 'compact'
                 ? 'bg-background text-foreground shadow-sm'
@@ -485,6 +629,36 @@ const OrgChart: React.FC<OrgChartProps> = ({
           >
             <LayoutGrid className="h-3.5 w-3.5" />
             Compact
+          </button>
+        </div>
+
+        <div className="w-px h-5 bg-border mx-2" />
+
+        {/* Layout Mode Toggle */}
+        <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/50">
+          <button
+            onClick={() => setLayoutMode('tree')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+              layoutMode === 'tree'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            title="Tree layout"
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+            Tree
+          </button>
+          <button
+            onClick={() => setLayoutMode('radial')}
+            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
+              layoutMode === 'radial'
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+            title="Radial layout"
+          >
+            <Network className="h-3.5 w-3.5" />
+            Radial
           </button>
         </div>
 
@@ -502,10 +676,49 @@ const OrgChart: React.FC<OrgChartProps> = ({
           {hasActiveFilters && <span className="w-1.5 h-1.5 bg-primary rounded-full" />}
         </Button>
 
+        {/* Selection Navigation - only show when a node is selected */}
+        {selectedNodeId && (
+          <>
+            <div className="w-px h-5 bg-border mx-2" />
+            <div className="flex items-center gap-0.5 bg-muted/50 rounded-md p-0.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToParent}
+                className="h-7 w-7 p-0"
+                title="Go to parent (←)"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToChild}
+                className="h-7 w-7 p-0"
+                title="Go to first child (→)"
+                disabled={!hasChildren(selectedNodeId)}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={focusOnSelected}
+                className="h-7 px-2 gap-1"
+                title="Focus on this subtree (F)"
+                disabled={!hasChildren(selectedNodeId)}
+              >
+                <Crosshair className="h-3.5 w-3.5" />
+                <span className="text-xs">Focus</span>
+              </Button>
+            </div>
+          </>
+        )}
+
         {focusedNodeId && (
           <>
             <div className="w-px h-5 bg-border mx-2" />
-            <Button variant="ghost" size="sm" onClick={clearFocus} className="h-8 px-2 gap-1.5 text-primary">
+            <Button variant="ghost" size="sm" onClick={clearFocus} className="h-8 px-2 gap-1.5 text-primary" title="Exit focus mode and show full tree (Esc)">
               <Focus className="h-4 w-4" />
               <span className="text-xs">Exit Focus</span>
             </Button>
@@ -541,11 +754,11 @@ const OrgChart: React.FC<OrgChartProps> = ({
             size="sm"
             onClick={() => setShowAnalytics(!showAnalytics)}
             className="h-8 w-8 p-0"
-            title="Analytics"
+            title="Toggle organization analytics panel"
           >
             <BarChart3 className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="sm" onClick={handlePrint} className="h-8 w-8 p-0" title="Print">
+          <Button variant="ghost" size="sm" onClick={handlePrint} className="h-8 w-8 p-0" title="Print org chart">
             <Printer className="h-4 w-4" />
           </Button>
         </div>
@@ -656,72 +869,99 @@ const OrgChart: React.FC<OrgChartProps> = ({
           onMouseUp={handlePanEnd}
           onMouseLeave={handlePanEnd}
           onWheel={handleWheel}
+          onDoubleClick={handleDoubleClick}
         >
-          {/* Canvas content - absolutely positioned for infinite panning */}
+          {/* Canvas content - centered with transform for panning/zooming */}
           <div
-            className="absolute"
+            className="absolute inset-0 flex justify-center"
             style={{
-              left: '50%',
-              top: '40px',
-              transform: `translate(calc(-50% + ${panPosition.x}px), ${panPosition.y}px) scale(${zoomLevel / 100})`,
+              paddingTop: '40px',
+              transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${zoomLevel / 100})`,
               transformOrigin: 'top center',
               cursor: isPanning ? 'grabbing' : 'grab',
               transition: isPanning ? 'none' : 'transform 0.15s ease-out',
             }}
           >
-            <div className="flex flex-col items-center">
-              {nodesToRender.map((node) => (
-                <OrgNodeComponent
-                  key={node.id}
-                  node={node}
-                  isExpanded={isNodeExpanded(node.id)}
-                  onToggleExpand={toggleExpansion}
-                  onFocus={handleFocus}
-                  getNodeDescendantCount={getNodeDescendantCount}
-                  getDirectChildCount={getDirectChildCount}
-                  hasChildren={hasChildren}
-                  isNodeExpanded={isNodeExpanded}
-                  cardSizeMode={cardSizeMode}
-                  isFocusedRoot={focusedNodeId === node.id}
-                  selectedNodeId={selectedNodeId}
-                  onSelect={setSelectedNodeId}
-                  highlightedNodeId={highlightedUserId}
-                  onOpenDetail={handleOpenDetail}
-                />
-              ))}
+            {/* Tree Layout */}
+            {layoutMode === 'tree' && (
+              <div className="flex flex-col items-center">
+                {nodesToRender.map((node) => (
+                  <OrgNodeComponent
+                    key={node.id}
+                    node={node}
+                    isExpanded={isNodeExpanded(node.id)}
+                    onToggleExpand={toggleExpansion}
+                    onFocus={handleFocus}
+                    getNodeDescendantCount={getNodeDescendantCount}
+                    getDirectChildCount={getDirectChildCount}
+                    hasChildren={hasChildren}
+                    isNodeExpanded={isNodeExpanded}
+                    cardSizeMode={cardSizeMode}
+                    isFocusedRoot={focusedNodeId === node.id}
+                    selectedNodeId={selectedNodeId}
+                    onSelect={setSelectedNodeId}
+                    highlightedNodeId={highlightedUserId}
+                    onOpenDetail={handleOpenDetail}
+                    onFocusTeam={handleFocusTeam}
+                    onDismissHighlight={handleDismissHighlight}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Radial Layout */}
+            {layoutMode === 'radial' && (
+              <RadialOrgChart
+                nodes={nodesToRender}
+                cardSizeMode={cardSizeMode}
+                selectedNodeId={selectedNodeId}
+                onSelect={setSelectedNodeId}
+                onFocus={handleFocus}
+                highlightedNodeId={highlightedUserId}
+                onOpenDetail={handleOpenDetail}
+                getNodeDescendantCount={getNodeDescendantCount}
+                hasChildren={hasChildren}
+              />
+            )}
+          </div>
+
+          {/* Minimap - only show in tree mode */}
+          {layoutMode === 'tree' && (
+            <div className="absolute bottom-4 right-4 z-10">
+              <Minimap
+                orgTree={nodesToRender}
+                isNodeExpanded={isNodeExpanded}
+                highlightedNodeId={selectedNodeId || highlightedUserId}
+                onNodeClick={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                }}
+              />
             </div>
+          )}
+
+          {/* Help hints at top */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">
+            <span><Move className="inline h-3 w-3 mr-1" />Drag to pan</span>
+            <span className="text-muted-foreground/50">•</span>
+            <span>Double-click to zoom</span>
+            <span className="text-muted-foreground/50">•</span>
+            <span>Click to expand/collapse</span>
+            <span className="text-muted-foreground/50">•</span>
+            <span>Right-click for details</span>
           </div>
 
-          {/* Minimap */}
-          <div className="absolute bottom-4 right-4 z-10">
-            <Minimap
-              orgTree={orgTree}
-              isNodeExpanded={isNodeExpanded}
-              highlightedNodeId={selectedNodeId || highlightedUserId}
-              onNodeClick={(nodeId) => {
-                setSelectedNodeId(nodeId);
-              }}
+          {/* Detail Sidebar - inside canvas so it's bounded by canvas height */}
+          {selectedDetailNode && (
+            <DetailSidebar
+              user={selectedDetailNode.user}
+              onClose={handleCloseDetail}
+              managerName={getManagerName(selectedDetailNode)}
+              directReportCount={getDirectChildCount(selectedDetailNode.id)}
+              totalDescendantCount={getNodeDescendantCount(selectedDetailNode.id)}
+              level={selectedDetailNode.level}
             />
-          </div>
-
-          {/* Pan hint */}
-          <div className="absolute bottom-4 left-4 text-xs text-muted-foreground bg-background/80 backdrop-blur px-2 py-1 rounded pointer-events-none">
-            <Move className="inline h-3 w-3 mr-1" />
-            Drag to pan • Ctrl+scroll to zoom
-          </div>
+          )}
         </div>
-      )}
-
-      {/* Detail Sidebar */}
-      {selectedDetailNode && (
-        <DetailSidebar
-          user={selectedDetailNode.user}
-          onClose={handleCloseDetail}
-          managerName={getManagerName(selectedDetailNode)}
-          directReportCount={getDirectChildCount(selectedDetailNode.id)}
-          totalDescendantCount={getNodeDescendantCount(selectedDetailNode.id)}
-          level={selectedDetailNode.level}
-        />
       )}
     </div>
   );

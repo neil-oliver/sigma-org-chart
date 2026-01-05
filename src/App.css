@@ -44,8 +44,8 @@
   z-index: 10;
 }
 
-/* Improve spacing and alignment */
-.org-chart .flex {
+/* Improve spacing and alignment - only for children row, not the org-node itself */
+.org-chart .children-row {
   align-items: flex-start;
 }
 

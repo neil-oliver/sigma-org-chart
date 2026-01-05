@@ -27,6 +27,12 @@ interface UseKeyboardNavigationReturn {
   setSelectedNodeId: (nodeId: string | null) => void;
   /** Is keyboard navigation active */
   isKeyboardActive: boolean;
+  /** Navigate to parent of selected node */
+  goToParent: () => void;
+  /** Navigate to first child of selected node (expands if needed) */
+  goToChild: () => void;
+  /** Focus on selected node's subtree */
+  focusOnSelected: () => void;
 }
 
 /**
@@ -80,6 +86,16 @@ export function useKeyboardNavigation(
   }, [orgTree]);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    // Don't capture keys when user is typing in an input, textarea, or contenteditable
+    const target = event.target as HTMLElement;
+    if (
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
     // Only handle if we have a selection
     if (!selectedNodeId) {
       // On first arrow key, select first visible node
@@ -145,7 +161,9 @@ export function useKeyboardNavigation(
         }
         break;
       }
-      case ' ': {
+      case ' ':
+      case 'f':
+      case 'F': {
         event.preventDefault();
         if (hasChildren(selectedNodeId)) {
           onFocus(selectedNodeId);
@@ -165,6 +183,42 @@ export function useKeyboardNavigation(
     }
   }, [selectedNodeId, focusedNodeId, orgTree, findNode, findSiblings, hasChildren, isNodeExpanded, toggleExpansion, onFocus, clearFocus]);
 
+  // Navigate to parent of selected node
+  const goToParent = useCallback(() => {
+    if (!selectedNodeId) return;
+    const { parent } = findSiblings(selectedNodeId);
+    if (parent) {
+      setSelectedNodeId(parent.id);
+      setIsKeyboardActive(true);
+    }
+  }, [selectedNodeId, findSiblings]);
+
+  // Navigate to first child of selected node (expands if needed)
+  const goToChild = useCallback(() => {
+    if (!selectedNodeId) return;
+    if (hasChildren(selectedNodeId)) {
+      if (!isNodeExpanded(selectedNodeId)) {
+        toggleExpansion(selectedNodeId);
+      }
+      // Move to first child after a short delay for expansion
+      setTimeout(() => {
+        const node = findNode(selectedNodeId);
+        if (node && node.children.length > 0) {
+          setSelectedNodeId(node.children[0].id);
+          setIsKeyboardActive(true);
+        }
+      }, 50);
+    }
+  }, [selectedNodeId, hasChildren, isNodeExpanded, toggleExpansion, findNode]);
+
+  // Focus on selected node's subtree
+  const focusOnSelected = useCallback(() => {
+    if (!selectedNodeId) return;
+    if (hasChildren(selectedNodeId)) {
+      onFocus(selectedNodeId);
+    }
+  }, [selectedNodeId, hasChildren, onFocus]);
+
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
@@ -174,6 +228,9 @@ export function useKeyboardNavigation(
     selectedNodeId,
     setSelectedNodeId,
     isKeyboardActive,
+    goToParent,
+    goToChild,
+    focusOnSelected,
   };
 }
 
