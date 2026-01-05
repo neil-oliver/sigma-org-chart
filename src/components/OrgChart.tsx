@@ -14,7 +14,7 @@ import RadialOrgChart from './RadialOrgChart';
 import { UserData, CardSizeMode } from '../types';
 import { useOrgChart } from '../hooks/useOrgChart';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
-import { OrgNode, categorizeMappedUsers } from '../utils/orgChartUtils';
+import { OrgNode, categorizeMappedUsers, filterOrgTree, FilterCriteria } from '../utils/orgChartUtils';
 
 export type LayoutMode = 'tree' | 'radial';
 
@@ -127,23 +127,26 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
                   level={node.level}
                   showLevelBadge={true}
                   isHighlighted={isSelected || isHighlighted}
+                  onViewDetails={() => onOpenDetail?.(node.id)}
+                  onFocusTeam={() => onFocusTeam?.(node.id)}
                 />
               </div>
             ) : (
               <div
                 onDoubleClick={handleDoubleClick}
                 onClick={() => onSelect?.(node.id)}
-                title={nodeHasChildren ? "Double-click to focus | Right-click for details" : "Right-click for details"}
+                title="Click ⋮ for more actions"
                 className="rounded-lg transition-shadow"
               >
                 <UserCard
                   user={node.user}
                   hasChildren={nodeHasChildren}
-                  childCount={totalDescendantCount}
-                  visibleChildCount={directChildCount}
+                  childCount={directChildCount}
                   isExpanded={isExpanded}
                   level={node.level}
                   onToggleExpand={handleExpandClick}
+                  onViewDetails={() => onOpenDetail?.(node.id)}
+                  onFocusTeam={() => onFocusTeam?.(node.id)}
                 />
               </div>
             )}
@@ -181,23 +184,26 @@ const OrgNodeComponent: React.FC<OrgNodeComponentProps> = memo(({
               level={node.level}
               showLevelBadge={true}
               isHighlighted={isSelected}
+              onViewDetails={() => onOpenDetail?.(node.id)}
+              onFocusTeam={() => onFocusTeam?.(node.id)}
             />
           </div>
         ) : (
           <div
             onDoubleClick={handleDoubleClick}
             onClick={() => onSelect?.(node.id)}
-            title={nodeHasChildren ? "Double-click to focus | Right-click for details" : "Right-click for details"}
+            title="Click ⋮ for more actions"
             className={`rounded-lg transition-shadow ${isSelected ? 'ring-2 ring-primary ring-offset-2' : ''}`}
           >
             <UserCard
               user={node.user}
               hasChildren={nodeHasChildren}
-              childCount={totalDescendantCount}
-              visibleChildCount={directChildCount}
+              childCount={directChildCount}
               isExpanded={isExpanded}
               level={node.level}
               onToggleExpand={handleExpandClick}
+              onViewDetails={() => onOpenDetail?.(node.id)}
+              onFocusTeam={() => onFocusTeam?.(node.id)}
             />
           </div>
         )
@@ -503,11 +509,25 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const hasActiveFilters = filters.orgUnits.length > 0 || filters.offices.length > 0 || filters.maxLevel !== null;
 
   // Determine which nodes to render (focused subtree or all)
-  const nodesToRender = focusedNode ? [focusedNode] : orgTree;
+  const baseNodesToRender = useMemo(() => {
+    return focusedNode ? [focusedNode] : orgTree;
+  }, [focusedNode, orgTree]);
+
+  // Apply filters to the tree
+  const filterResult = useMemo(() => {
+    const filterCriteria: FilterCriteria = {
+      orgUnits: filters.orgUnits,
+      offices: filters.offices,
+      maxLevel: filters.maxLevel,
+    };
+    return filterOrgTree(baseNodesToRender, filterCriteria);
+  }, [baseNodesToRender, filters.orgUnits, filters.offices, filters.maxLevel]);
+
+  const nodesToRender = filterResult.filteredTree;
 
   // Calculate stats
   const stats = useMemo(() => {
-    if (orgTree.length === 0) return { total: 0, visible: 0, focused: 0 };
+    if (orgTree.length === 0) return { total: 0, visible: 0, focused: 0, filtered: 0 };
     let visibleCount = 0;
     const countVisible = (nodes: OrgNode[]) => {
       for (const node of nodes) {
@@ -524,8 +544,11 @@ const OrgChart: React.FC<OrgChartProps> = ({
       unmapped: unmappedUsers.length,
       visible: visibleCount,
       focused: focusedNode ? getNodeDescendantCount(focusedNode.id) + 1 : mappedUsers.length,
+      // Include filter stats
+      filteredMatch: filterResult.matchCount,
+      filteredTotal: filterResult.totalCount,
     };
-  }, [users.length, mappedUsers.length, unmappedUsers.length, orgTree.length, nodesToRender, isNodeExpanded, focusedNode, getNodeDescendantCount]);
+  }, [users.length, mappedUsers.length, unmappedUsers.length, orgTree.length, nodesToRender, isNodeExpanded, focusedNode, getNodeDescendantCount, filterResult.matchCount, filterResult.totalCount]);
 
   // Performance warning threshold
   const visibleNodeWarningThreshold = 200;
@@ -533,12 +556,34 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
   if (orgTree.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h4 className="text-lg font-medium mb-2">No Organization Chart Data</h4>
-          <p className="text-muted-foreground">
-            Please ensure your data includes the required fields to build an organizational hierarchy.
+      <div className="flex items-center justify-center h-64 bg-muted/30 rounded-lg m-4">
+        <div className="text-center max-w-lg p-8">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+            <svg className="w-7 h-7 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h4 className="text-lg font-semibold mb-2">Unable to Build Org Chart</h4>
+          <p className="text-muted-foreground mb-4">
+            We have employee data but couldn't build a hierarchy. This usually means the Manager column isn't mapped or manager names don't match employee names.
           </p>
+          <div className="text-left bg-card rounded-lg border p-4 space-y-3">
+            <p className="text-sm font-medium">Possible fixes:</p>
+            <ul className="text-sm text-muted-foreground space-y-2">
+              <li className="flex items-start gap-2">
+                <span className="text-amber-600 dark:text-amber-400">•</span>
+                <span>Check that the <strong>Manager</strong> column is mapped in Settings</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-600 dark:text-amber-400">•</span>
+                <span>Ensure manager values exactly match employee full names (case-sensitive)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-amber-600 dark:text-amber-400">•</span>
+                <span>At least one person should have no manager (the CEO/root)</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -547,7 +592,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   return (
     <div className={`org-chart-container h-full flex flex-col ${className}`}>
       {/* Row 1: Navigation - Breadcrumb + Search + Unmapped Badge */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="print:hidden flex items-center gap-4 px-4 py-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Breadcrumb - Left */}
         <div className="flex-shrink-0">
           <Breadcrumb
@@ -588,7 +633,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
       </div>
 
       {/* Row 2: Tools */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b bg-muted/30">
+      <div className="print:hidden flex items-center gap-1 px-4 py-2 border-b bg-muted/30">
         {/* Expand/Collapse Group */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={expandAllNodes} className="h-8 px-2" title="Expand all">
@@ -728,20 +773,34 @@ const OrgChart: React.FC<OrgChartProps> = ({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Zoom Controls */}
-        <div className="flex items-center gap-0.5">
-          <Button variant="ghost" size="sm" onClick={handleZoomOut} disabled={zoomLevel <= minZoom} className="h-8 w-8 p-0" title="Zoom out">
-            <ZoomOut className="h-4 w-4" />
+        {/* Zoom Controls - combined */}
+        <div className="flex items-center rounded-md border border-border bg-muted/50 p-0.5">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomOut}
+            disabled={zoomLevel <= minZoom}
+            className="h-7 w-7 p-0 rounded-r-none"
+            title="Zoom out"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
           </Button>
           <button
             onClick={handleZoomReset}
-            className="text-xs text-muted-foreground hover:text-foreground w-10 text-center"
-            title="Reset zoom"
+            className="text-xs font-medium text-muted-foreground hover:text-foreground w-12 h-7 text-center bg-background border-x border-border"
+            title="Reset zoom to 100%"
           >
             {zoomLevel}%
           </button>
-          <Button variant="ghost" size="sm" onClick={handleZoomIn} disabled={zoomLevel >= maxZoom} className="h-8 w-8 p-0" title="Zoom in">
-            <ZoomIn className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleZoomIn}
+            disabled={zoomLevel >= maxZoom}
+            className="h-7 w-7 p-0 rounded-l-none"
+            title="Zoom in"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -774,7 +833,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
       {/* Performance Warning - only show when needed */}
       {showPerformanceWarning && (
-        <div className="px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-center">
+        <div className="print:hidden px-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 text-center">
           <p className="text-sm text-yellow-800 dark:text-yellow-200">
             ⚠️ Showing {stats.visible} nodes may impact performance.
             <Button variant="link" size="sm" onClick={collapseAllNodes} className="text-yellow-800 dark:text-yellow-200 underline ml-1 h-auto p-0">
@@ -786,19 +845,33 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
       {/* Filter Panel - slides in below toolbar */}
       {showFilters && (
-        <div className="px-4 py-3 border-b bg-muted/20">
+        <div className="print:hidden px-4 py-3 border-b bg-muted/20">
           <FilterPanel
             users={users}
             filters={filters}
             onFiltersChange={setFilters}
             maxAvailableLevel={maxLevel}
           />
+          {hasActiveFilters && (
+            <div className="mt-3 pt-3 border-t border-border/50 flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">
+                Showing <span className="font-medium text-foreground">{stats.filteredMatch}</span> of{' '}
+                <span className="font-medium text-foreground">{stats.filteredTotal}</span> employees
+              </span>
+              <button
+                onClick={() => setFilters({ orgUnits: [], offices: [], maxLevel: null })}
+                className="text-xs text-primary hover:underline"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Analytics Panel */}
       {showAnalytics && viewMode === 'chart' && (
-        <div className="mb-4">
+        <div className="print:hidden mb-4">
           <OrgAnalytics orgTree={orgTree} totalUsers={users.length} />
         </div>
       )}
@@ -927,7 +1000,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
           {/* Minimap - only show in tree mode */}
           {layoutMode === 'tree' && (
-            <div className="absolute bottom-4 right-4 z-10">
+            <div className="print:hidden absolute bottom-4 right-4 z-10">
               <Minimap
                 orgTree={nodesToRender}
                 isNodeExpanded={isNodeExpanded}
@@ -940,7 +1013,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
           )}
 
           {/* Help hints at top */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">
+          <div className="print:hidden absolute top-3 left-1/2 -translate-x-1/2 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">
             <span><Move className="inline h-3 w-3 mr-1" />Drag to pan</span>
             <span className="text-muted-foreground/50">•</span>
             <span>Double-click to zoom</span>
@@ -952,14 +1025,16 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
           {/* Detail Sidebar - inside canvas so it's bounded by canvas height */}
           {selectedDetailNode && (
-            <DetailSidebar
-              user={selectedDetailNode.user}
-              onClose={handleCloseDetail}
-              managerName={getManagerName(selectedDetailNode)}
-              directReportCount={getDirectChildCount(selectedDetailNode.id)}
-              totalDescendantCount={getNodeDescendantCount(selectedDetailNode.id)}
-              level={selectedDetailNode.level}
-            />
+            <div className="print:hidden">
+              <DetailSidebar
+                user={selectedDetailNode.user}
+                onClose={handleCloseDetail}
+                managerName={getManagerName(selectedDetailNode)}
+                directReportCount={getDirectChildCount(selectedDetailNode.id)}
+                totalDescendantCount={getNodeDescendantCount(selectedDetailNode.id)}
+                level={selectedDetailNode.level}
+              />
+            </div>
           )}
         </div>
       )}

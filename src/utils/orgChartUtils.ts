@@ -368,3 +368,128 @@ export function categorizeMappedUsers(users: UserData[]): MappingResult {
     trueRoots,
   };
 }
+
+/**
+ * Filter criteria for org tree
+ */
+export interface FilterCriteria {
+  orgUnits: string[];
+  offices: string[];
+  maxLevel: number | null;
+}
+
+/**
+ * Result of filtering the org tree
+ */
+export interface FilterResult {
+  /** Filtered tree (only contains paths to matching nodes) */
+  filteredTree: OrgNode[];
+  /** Count of nodes that match the filter */
+  matchCount: number;
+  /** Total nodes before filtering */
+  totalCount: number;
+}
+
+/**
+ * Check if a node matches the filter criteria
+ */
+function nodeMatchesFilter(node: OrgNode, filters: FilterCriteria): boolean {
+  // If no filters active, everything matches
+  if (filters.orgUnits.length === 0 && filters.offices.length === 0 && filters.maxLevel === null) {
+    return true;
+  }
+
+  // Check max level (0-indexed, so maxLevel=1 means only level 0)
+  if (filters.maxLevel !== null && node.level >= filters.maxLevel) {
+    return false;
+  }
+
+  // Check org unit filter
+  if (filters.orgUnits.length > 0) {
+    if (!node.user.organizationUnit || !filters.orgUnits.includes(node.user.organizationUnit)) {
+      return false;
+    }
+  }
+
+  // Check office filter
+  if (filters.offices.length > 0) {
+    if (!node.user.office || !filters.offices.includes(node.user.office)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Filter the org tree based on criteria
+ *
+ * Strategy:
+ * - Keep nodes that match the filter
+ * - Also keep ancestor nodes (to preserve hierarchy) even if they don't match
+ * - Prune branches where no descendants match
+ * - Mark nodes as "dimmed" if they don't match but are kept as ancestors
+ */
+export function filterOrgTree(roots: OrgNode[], filters: FilterCriteria): FilterResult {
+  // If no filters are active, return original tree
+  if (filters.orgUnits.length === 0 && filters.offices.length === 0 && filters.maxLevel === null) {
+    let totalCount = 0;
+    const countNodes = (nodes: OrgNode[]) => {
+      for (const node of nodes) {
+        totalCount++;
+        countNodes(node.children);
+      }
+    };
+    countNodes(roots);
+    return { filteredTree: roots, matchCount: totalCount, totalCount };
+  }
+
+  let matchCount = 0;
+  let totalCount = 0;
+
+  const filterNode = (node: OrgNode): OrgNode | null => {
+    totalCount++;
+
+    const matches = nodeMatchesFilter(node, filters);
+    if (matches) {
+      matchCount++;
+    }
+
+    // Filter children recursively
+    const filteredChildren: OrgNode[] = [];
+    for (const child of node.children) {
+      const filteredChild = filterNode(child);
+      if (filteredChild) {
+        filteredChildren.push(filteredChild);
+      }
+    }
+
+    // Keep this node if it matches OR if any children were kept
+    if (matches || filteredChildren.length > 0) {
+      return {
+        ...node,
+        children: filteredChildren,
+      };
+    }
+
+    return null;
+  };
+
+  const filteredTree: OrgNode[] = [];
+  for (const root of roots) {
+    const filtered = filterNode(root);
+    if (filtered) {
+      filteredTree.push(filtered);
+    }
+  }
+
+  return { filteredTree, matchCount, totalCount };
+}
+
+/**
+ * Check if a node matches the filter (for dimming purposes)
+ * Exposed for use in rendering to dim non-matching ancestor nodes
+ */
+export function doesNodeMatchFilter(node: OrgNode, filters: FilterCriteria): boolean {
+  return nodeMatchesFilter(node, filters);
+}

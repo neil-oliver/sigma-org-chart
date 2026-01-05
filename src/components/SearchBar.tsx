@@ -18,6 +18,30 @@ interface SearchResult {
 }
 
 /**
+ * Highlight matching text in a string
+ */
+const HighlightText: React.FC<{ text: string; query: string }> = ({ text, query }) => {
+  if (!query.trim()) return <>{text}</>;
+
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, i) =>
+        regex.test(part) ? (
+          <mark key={i} className="bg-yellow-200 dark:bg-yellow-800 rounded px-0.5">
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
+};
+
+/**
  * Type-ahead search bar for finding employees
  */
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -142,6 +166,15 @@ const SearchBar: React.FC<SearchBarProps> = ({
           ref={resultsRef}
           className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-lg shadow-lg z-50 max-h-80 overflow-auto"
         >
+          {/* Results header with count */}
+          <div className="px-3 py-2 border-b bg-muted/50 flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {results.length === 10 ? '10+ matches' : `${results.length} match${results.length !== 1 ? 'es' : ''}`}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              ↑↓ to navigate • Enter to select
+            </span>
+          </div>
           {results.map((result, index) => (
             <button
               key={result.user.fullName}
@@ -154,10 +187,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
                 <User className="h-4 w-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate">{result.user.fullName}</div>
+                <div className="font-medium text-sm truncate">
+                  <HighlightText text={result.user.fullName} query={query} />
+                </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1 truncate">
                   {result.matchType === 'org' && <Building2 className="h-3 w-3" />}
-                  <span>{result.matchText}</span>
+                  <span>
+                    <HighlightText text={result.matchText} query={query} />
+                  </span>
                   {result.matchType !== 'name' && (
                     <span className="opacity-50">• {result.user.jobTitle}</span>
                   )}

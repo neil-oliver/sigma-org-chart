@@ -3,6 +3,7 @@ import { Card } from './ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { UserData } from '../types';
+import CardMenu from './CardMenu';
 
 interface CompactUserCardProps {
   user: UserData;
@@ -18,6 +19,10 @@ interface CompactUserCardProps {
   level?: number;
   /** Show level indicator badge */
   showLevelBadge?: boolean;
+  /** Callback to open detail sidebar */
+  onViewDetails?: () => void;
+  /** Callback to focus on this person's team */
+  onFocusTeam?: () => void;
 }
 
 const getInitials = (name: string): string => {
@@ -72,13 +77,21 @@ const CompactUserCard: React.FC<CompactUserCardProps> = ({
   onDoubleClick,
   level = 0,
   showLevelBadge = true,
+  onViewDetails,
+  onFocusTeam,
 }) => {
   const accentColor = getAccentColor(user.organizationUnit);
+
+  const handleCopyEmail = () => {
+    if (user.email) {
+      navigator.clipboard?.writeText(user.email).catch(() => {});
+    }
+  };
 
   return (
     <Card
       className={`
-        w-40 p-3 cursor-pointer relative
+        w-40 p-3 cursor-pointer relative group
         transition-all duration-200
         hover:shadow-md hover:scale-[1.02]
         border bg-card/80 backdrop-blur-sm
@@ -91,6 +104,18 @@ const CompactUserCard: React.FC<CompactUserCardProps> = ({
     >
       {/* Top accent bar */}
       <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-lg ${accentColor}`} />
+
+      {/* Menu button - shown on hover */}
+      <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <CardMenu
+          size="sm"
+          onViewDetails={onViewDetails}
+          onFocusTeam={onFocusTeam}
+          onCopyEmail={handleCopyEmail}
+          email={user.email}
+          hasChildren={hasChildren}
+        />
+      </div>
 
       {/* Level badge */}
       {showLevelBadge && (

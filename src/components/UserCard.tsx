@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
 import { Mail, MessageCircle, Building2, MapPin, Calendar, Users, Copy, ChevronDown, ChevronRight } from 'lucide-react';
 import { UserData } from '../types';
+import CardMenu from './CardMenu';
 
 interface UserCardProps {
   user: UserData;
@@ -11,10 +12,13 @@ interface UserCardProps {
   // Org chart specific props
   hasChildren?: boolean;
   childCount?: number;
-  visibleChildCount?: number;
   isExpanded?: boolean;
   level?: number;
   onToggleExpand?: () => void;
+  /** Callback to open detail sidebar */
+  onViewDetails?: () => void;
+  /** Callback to focus on this person's team */
+  onFocusTeam?: () => void;
 }
 
 // Compute a stable index from a string for consistent color selection
@@ -69,15 +73,16 @@ function getPillClasses(organizationUnit?: string): string {
   return pillVariants[index];
 }
 
-const UserCard: React.FC<UserCardProps> = ({ 
-  user, 
+const UserCard: React.FC<UserCardProps> = ({
+  user,
   className,
   hasChildren = false,
   childCount = 0,
-  visibleChildCount = 0,
   isExpanded = false,
   level = 0,
-  onToggleExpand
+  onToggleExpand,
+  onViewDetails,
+  onFocusTeam,
 }) => {
   const getInitials = (name: string) => {
     return name
@@ -110,9 +115,19 @@ const UserCard: React.FC<UserCardProps> = ({
   };
 
   return (
-    <Card className={`w-80 overflow-hidden rounded-xl border bg-card/60 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 ${className}`}>
+    <Card className={`w-80 overflow-hidden rounded-xl border bg-card/60 backdrop-blur-sm transition-all duration-300 hover:shadow-lg hover:shadow-primary/10 group ${className}`}>
       <div className={`relative h-24 w-full bg-gradient-to-br ${getGradientClasses(user.organizationUnit)}`}>
         <div className="absolute right-3 top-3 flex items-center gap-2">
+          {/* Menu button */}
+          <CardMenu
+            size="md"
+            variant="header"
+            onViewDetails={onViewDetails}
+            onFocusTeam={onFocusTeam}
+            onCopyEmail={handleCopyEmail}
+            email={user.email}
+            hasChildren={hasChildren}
+          />
           {user.email && (
             <a
               href={`mailto:${user.email}`}
@@ -133,7 +148,7 @@ const UserCard: React.FC<UserCardProps> = ({
             </button>
           )}
         </div>
-        
+
         {/* Expand/Collapse button */}
         {hasChildren && (
           <div className="absolute left-3 top-3">
@@ -222,7 +237,6 @@ const UserCard: React.FC<UserCardProps> = ({
                 <Users className="h-4 w-4" />
                 <span className="truncate">
                   {childCount} direct report{childCount !== 1 ? 's' : ''}
-                  {!isExpanded && ` (${visibleChildCount} shown)`}
                 </span>
               </div>
             )}
