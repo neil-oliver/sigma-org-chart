@@ -161,13 +161,151 @@ export function expandAll(roots: OrgNode[]): ExpandCollapseState {
  */
 export function collapseAll(roots: OrgNode[]): ExpandCollapseState {
   const state: ExpandCollapseState = {};
-  
+
   const setCollapsed = (node: OrgNode, level: number = 0) => {
     // Keep root level expanded, collapse everything else
     state[node.id] = level === 0;
     node.children.forEach(child => setCollapsed(child, level + 1));
   };
-  
+
   roots.forEach(root => setCollapsed(root));
   return state;
+}
+
+/**
+ * Expand nodes to a specific depth
+ * @param roots - Root nodes of the tree
+ * @param depth - How many levels to expand (1 = just root, 2 = root + children, etc.)
+ */
+export function expandToDepth(roots: OrgNode[], depth: number): ExpandCollapseState {
+  const state: ExpandCollapseState = {};
+
+  const setExpandedToDepth = (node: OrgNode, currentLevel: number = 0) => {
+    // Expand if we're within the desired depth
+    state[node.id] = currentLevel < depth;
+    node.children.forEach(child => setExpandedToDepth(child, currentLevel + 1));
+  };
+
+  roots.forEach(root => setExpandedToDepth(root, 0));
+  return state;
+}
+
+/**
+ * Get the path from root to a specific node
+ */
+export function getNodePath(roots: OrgNode[], nodeId: string): OrgNode[] {
+  for (const root of roots) {
+    const path = findPathToNode(root, nodeId, []);
+    if (path) return path;
+  }
+  return [];
+}
+
+function findPathToNode(node: OrgNode, nodeId: string, currentPath: OrgNode[]): OrgNode[] | null {
+  const newPath = [...currentPath, node];
+
+  if (node.id === nodeId) {
+    return newPath;
+  }
+
+  for (const child of node.children) {
+    const foundPath = findPathToNode(child, nodeId, newPath);
+    if (foundPath) return foundPath;
+  }
+
+  return null;
+}
+
+/**
+ * Detect circular references in the org data
+ * Returns array of node IDs that form cycles
+ */
+export function detectCircularRefs(users: UserData[]): string[] {
+  const visited = new Set<string>();
+  const inStack = new Set<string>();
+  const cycles: string[] = [];
+
+  const userMap = new Map<string, UserData>();
+  users.forEach(user => userMap.set(user.fullName, user));
+
+  const dfs = (userName: string): boolean => {
+    if (inStack.has(userName)) {
+      cycles.push(userName);
+      return true;
+    }
+    if (visited.has(userName)) {
+      return false;
+    }
+
+    visited.add(userName);
+    inStack.add(userName);
+
+    const user = userMap.get(userName);
+    if (user?.manager && userMap.has(user.manager)) {
+      dfs(user.manager);
+    }
+
+    inStack.delete(userName);
+    return false;
+  };
+
+  users.forEach(user => {
+    if (!visited.has(user.fullName)) {
+      dfs(user.fullName);
+    }
+  });
+
+  return cycles;
+}
+
+/**
+ * Validate and clean org data, handling edge cases
+ * Returns cleaned users array and any warnings
+ */
+export interface ValidationResult {
+  users: UserData[];
+  warnings: string[];
+  stats: {
+    totalUsers: number;
+    rootNodes: number;
+    orphanedNodes: number;
+    circularRefs: number;
+  };
+}
+
+export function validateOrgData(users: UserData[]): ValidationResult {
+  const warnings: string[] = [];
+  const userNames = new Set(users.map(u => u.fullName));
+
+  // Check for circular references
+  const circularRefs = detectCircularRefs(users);
+  if (circularRefs.length > 0) {
+    warnings.push(`Detected ${circularRefs.length} circular reference(s)`);
+  }
+
+  // Count orphaned nodes (manager not in dataset)
+  let orphanedCount = 0;
+  users.forEach(user => {
+    if (user.manager && !userNames.has(user.manager)) {
+      orphanedCount++;
+    }
+  });
+
+  if (orphanedCount > 0) {
+    warnings.push(`${orphanedCount} employee(s) have managers not in the dataset`);
+  }
+
+  // Count root nodes
+  const rootCount = users.filter(u => !u.manager || !userNames.has(u.manager)).length;
+
+  return {
+    users, // Return as-is; buildOrgChart handles orphans gracefully
+    warnings,
+    stats: {
+      totalUsers: users.length,
+      rootNodes: rootCount,
+      orphanedNodes: orphanedCount,
+      circularRefs: circularRefs.length,
+    }
+  };
 }
