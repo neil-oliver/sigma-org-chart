@@ -4,6 +4,7 @@ import { Button } from './components/ui/button';
 import { Settings as SettingsIcon } from 'lucide-react';
 import Settings, { DEFAULT_SETTINGS } from './Settings';
 import OrgChart from './components/OrgChart';
+import Onboarding from './Onboarding';
 import { 
   SigmaConfig, 
   SigmaData, 
@@ -167,42 +168,16 @@ const App: React.FC = (): React.JSX.Element => {
 
   const users = transformToUserData();
 
-  // Early return for missing source
-  if (!config.source) {
+  // Show onboarding if source or required columns are not configured
+  if (!config.source || !config.fullNameColumn) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center p-10"
-        style={{ 
-          backgroundColor: String(settings.backgroundColor) || 'white',
-          color: String(settings.textColor) || 'black'
-        }}
-      >
-        <div className="text-center max-w-xl">
-          <h3 className="text-lg font-semibold mb-2">{settings.title || 'Sigma Plugin Template'}</h3>
-          <p className="text-muted-foreground">Please select a data source to get started.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Early return for missing required columns
-  if (!config.fullNameColumn) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center p-10"
-        style={{ 
-          backgroundColor: String(settings.backgroundColor) || 'white',
-          color: String(settings.textColor) || 'black'
-        }}
-      >
-        <div className="text-center max-w-xl">
-          <h3 className="text-lg font-semibold mb-2">Data Source Selected</h3>
-          <p className="text-muted-foreground">Please configure the required columns to display the org chart.</p>
-          <p className="text-sm text-muted-foreground mt-2">
-            At minimum, you need to select a "Full Name Column" to get started.
-          </p>
-        </div>
-      </div>
+      <Onboarding
+        hasSource={Boolean(config.source)}
+        hasFullName={Boolean(config.fullNameColumn)}
+        hasManager={Boolean(config.managerColumn)}
+        editMode={Boolean(config.editMode)}
+        onOpenSettings={handleShowSettings}
+      />
     );
   }
 
