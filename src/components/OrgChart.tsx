@@ -1,6 +1,6 @@
 import React, { memo, useState, useCallback, useMemo } from 'react';
 import { Button } from './ui/button';
-import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, Printer, BarChart3, Move, Network, GitBranch, ChevronUp, ChevronDown, Crosshair } from 'lucide-react';
+import { Maximize2, Minimize2, RotateCcw, LayoutGrid, LayoutList, Focus, Keyboard, Filter, ZoomIn, ZoomOut, Move, ChevronUp, ChevronDown, Crosshair } from 'lucide-react';
 import UserCard from './UserCard';
 import CompactUserCard from './CompactUserCard';
 import ChildrenContainer from './ChildrenContainer';
@@ -8,15 +8,11 @@ import Breadcrumb from './Breadcrumb';
 import SearchBar from './SearchBar';
 import FilterPanel, { FilterState } from './FilterPanel';
 import DetailSidebar from './DetailSidebar';
-import OrgAnalytics from './OrgAnalytics';
 import Minimap from './Minimap';
-import RadialOrgChart from './RadialOrgChart';
 import { UserData, CardSizeMode } from '../types';
 import { useOrgChart } from '../hooks/useOrgChart';
 import { useKeyboardNavigation } from '../hooks/useKeyboardNavigation';
 import { OrgNode, categorizeMappedUsers, filterOrgTree, FilterCriteria } from '../utils/orgChartUtils';
-
-export type LayoutMode = 'tree' | 'radial';
 
 interface OrgChartProps {
   users: UserData[];
@@ -278,9 +274,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
   // View mode: org chart or unmapped employees
   const [viewMode, setViewMode] = useState<'chart' | 'unmapped'>('chart');
 
-  // Layout mode: tree or radial
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>('tree');
-
   // Zoom state
   const [zoomLevel, setZoomLevel] = useState(70);
   const minZoom = 50;
@@ -291,9 +284,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-
-  // Analytics panel state
-  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const handleZoomIn = useCallback(() => {
     setZoomLevel(z => Math.min(z + zoomStep, maxZoom));
@@ -348,11 +338,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
     } else {
       setZoomLevel(z => Math.min(z + zoomStep * 2, maxZoom));
     }
-  }, []);
-
-  // Print handler
-  const handlePrint = useCallback(() => {
-    window.print();
   }, []);
 
   // Detail sidebar state
@@ -704,36 +689,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
         <div className="w-px h-5 bg-border mx-2" />
 
-        {/* Layout Mode Toggle */}
-        <div className="inline-flex rounded-md border border-border p-0.5 bg-muted/50">
-          <button
-            onClick={() => setLayoutMode('tree')}
-            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
-              layoutMode === 'tree'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            title="Tree layout"
-          >
-            <GitBranch className="h-3.5 w-3.5" />
-            Tree
-          </button>
-          <button
-            onClick={() => setLayoutMode('radial')}
-            className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded transition-colors ${
-              layoutMode === 'radial'
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-            title="Radial layout"
-          >
-            <Network className="h-3.5 w-3.5" />
-            Radial
-          </button>
-        </div>
-
-        <div className="w-px h-5 bg-border mx-2" />
-
         {/* Filters */}
         <Button
           variant={showFilters ? 'secondary' : 'ghost'}
@@ -829,24 +784,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
           </Button>
         </div>
 
-        <div className="w-px h-5 bg-border mx-2" />
-
-        {/* Analytics & Print */}
-        <div className="flex items-center gap-1">
-          <Button
-            variant={showAnalytics ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setShowAnalytics(!showAnalytics)}
-            className="h-8 w-8 p-0"
-            title="Toggle organization analytics panel"
-          >
-            <BarChart3 className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handlePrint} className="h-8 w-8 p-0" title="Print org chart">
-            <Printer className="h-4 w-4" />
-          </Button>
-        </div>
-
         {/* Keyboard hint */}
         {isKeyboardActive && (
           <div className="hidden lg:flex items-center gap-1 ml-2 text-xs text-muted-foreground">
@@ -891,13 +828,6 @@ const OrgChart: React.FC<OrgChartProps> = ({
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Analytics Panel */}
-      {showAnalytics && viewMode === 'chart' && (
-        <div className="print:hidden mb-4">
-          <OrgAnalytics orgTree={orgTree} totalUsers={users.length} />
         </div>
       )}
 
@@ -981,61 +911,42 @@ const OrgChart: React.FC<OrgChartProps> = ({
             }}
           >
             {/* Tree Layout */}
-            {layoutMode === 'tree' && (
-              <div className="flex flex-col items-center">
-                {nodesToRender.map((node) => (
-                  <OrgNodeComponent
-                    key={node.id}
-                    node={node}
-                    isExpanded={isNodeExpanded(node.id)}
-                    onToggleExpand={toggleExpansion}
-                    onFocus={handleFocus}
-                    getNodeDescendantCount={getNodeDescendantCount}
-                    getDirectChildCount={getDirectChildCount}
-                    hasChildren={hasChildren}
-                    isNodeExpanded={isNodeExpanded}
-                    cardSizeMode={cardSizeMode}
-                    isFocusedRoot={focusedNodeId === node.id}
-                    selectedNodeId={selectedNodeId}
-                    onSelect={setSelectedNodeId}
-                    highlightedNodeId={highlightedUserId}
-                    onOpenDetail={handleOpenDetail}
-                    onFocusTeam={handleFocusTeam}
-                    onDismissHighlight={handleDismissHighlight}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Radial Layout */}
-            {layoutMode === 'radial' && (
-              <RadialOrgChart
-                nodes={nodesToRender}
-                cardSizeMode={cardSizeMode}
-                selectedNodeId={selectedNodeId}
-                onSelect={setSelectedNodeId}
-                onFocus={handleFocus}
-                highlightedNodeId={highlightedUserId}
-                onOpenDetail={handleOpenDetail}
-                getNodeDescendantCount={getNodeDescendantCount}
-                hasChildren={hasChildren}
-              />
-            )}
+            <div className="flex flex-col items-center">
+              {nodesToRender.map((node) => (
+                <OrgNodeComponent
+                  key={node.id}
+                  node={node}
+                  isExpanded={isNodeExpanded(node.id)}
+                  onToggleExpand={toggleExpansion}
+                  onFocus={handleFocus}
+                  getNodeDescendantCount={getNodeDescendantCount}
+                  getDirectChildCount={getDirectChildCount}
+                  hasChildren={hasChildren}
+                  isNodeExpanded={isNodeExpanded}
+                  cardSizeMode={cardSizeMode}
+                  isFocusedRoot={focusedNodeId === node.id}
+                  selectedNodeId={selectedNodeId}
+                  onSelect={setSelectedNodeId}
+                  highlightedNodeId={highlightedUserId}
+                  onOpenDetail={handleOpenDetail}
+                  onFocusTeam={handleFocusTeam}
+                  onDismissHighlight={handleDismissHighlight}
+                />
+              ))}
+            </div>
           </div>
 
-          {/* Minimap - only show in tree mode */}
-          {layoutMode === 'tree' && (
-            <div className="print:hidden absolute bottom-4 right-4 z-10">
-              <Minimap
-                orgTree={nodesToRender}
-                isNodeExpanded={isNodeExpanded}
-                highlightedNodeId={selectedNodeId || highlightedUserId}
-                onNodeClick={(nodeId) => {
-                  setSelectedNodeId(nodeId);
-                }}
-              />
-            </div>
-          )}
+          {/* Minimap */}
+          <div className="absolute bottom-4 right-4 z-10">
+            <Minimap
+              orgTree={nodesToRender}
+              isNodeExpanded={isNodeExpanded}
+              highlightedNodeId={selectedNodeId || highlightedUserId}
+              onNodeClick={(nodeId) => {
+                setSelectedNodeId(nodeId);
+              }}
+            />
+          </div>
 
           {/* Help hints at top right */}
           <div className="print:hidden absolute top-3 right-3 flex items-center gap-3 text-xs text-muted-foreground bg-background/80 backdrop-blur px-3 py-1.5 rounded-full pointer-events-none z-10">

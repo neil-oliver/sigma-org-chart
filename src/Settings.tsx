@@ -212,7 +212,7 @@ const Settings: React.FC<SettingsProps> = ({
                 onChange={(e) => setTempSettings((prev) => ({ ...prev, title: e.target.value }))}
                 placeholder="e.g., Acme Corp Organization"
               />
-              <p className="text-sm text-muted-foreground">Displayed in print output and page header.</p>
+              <p className="text-sm text-muted-foreground">Displayed in the page header.</p>
             </div>
 
             {/* Display Settings Section */}
