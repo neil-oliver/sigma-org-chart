@@ -2,6 +2,18 @@
 
 A clean, simple template for building Sigma Computing plugins with React, TypeScript, and shadcn/ui components.
 
+## Disclaimer
+
+This repository is provided **as-is** as a starting point and source of inspiration for customers building their own Sigma plugins. Please be aware of the following:
+
+- **No Warranty**: This code is provided without any warranty, express or implied. Use at your own risk.
+- **Subject to Change**: We reserve the right to modify, update, or remove any part of this codebase at any time without prior notice.
+- **No Support Guarantees**: Bug reports and feature requests are welcome, but we make no commitments regarding response times or whether issues will be addressed.
+- **Not Production-Ready**: This template is intended as a foundation for your own development. You are responsible for testing, securing, and maintaining any code you build on top of it.
+- **Self-Hosting Required**: While we use Netlify to host our internal deployments and previews, customers must host their own plugins independently. **Do not use our deploy preview URLs**—they are for internal development only and may change or become unavailable without notice.
+
+By using this repository, you acknowledge and accept these terms.
+
 ## Features
 
 - **Simple Data Display**: Shows row count and column information from selected data
