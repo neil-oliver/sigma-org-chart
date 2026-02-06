@@ -104,6 +104,18 @@ src/
 - **Tailwind CSS**: Styling framework
 - **Lucide React**: Icons
 
+### Plugin SDK version (when to move back to 1.1.0)
+
+`@sigmacomputing/plugin` is **pinned to 1.0.5** in `package.json`. Version 1.1.0 is currently broken on npm (missing `dist/utils/` and `dist/react/` in the published package), so the build and type-check fail if you use `^1.0.5` and npm resolves to 1.1.0.
+
+**When to upgrade to 1.1.0:**
+
+1. Check that a fixed 1.1.x (or newer) has been published: look at [@sigmacomputing/plugin on npm](https://www.npmjs.com/package/@sigmacomputing/plugin) and any release notes.
+2. In `package.json`, change the dependency to allow the new version, e.g. `"@sigmacomputing/plugin": "^1.1.0"` or a specific version like `"1.1.1"`.
+3. Run `npm install`, then `npm run type-check` and `npm run build`. If both pass, the published package is fixed; you can remove this note from the README.
+
+**If 1.1.0 is still broken:** keep the pin at `1.0.5` (no caret) until Sigma publishes a fix.
+
 ## Development Tips
 
 1. **Test in Sigma**: Use the development server to test your plugin in Sigma
