@@ -6,7 +6,7 @@
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
     "@radix-ui/react-label": "^2.1.7",
-    "@sigmacomputing/plugin": "^1.0.5",
+    "@sigmacomputing/plugin": "1.0.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1"
@@ -37,6 +37,18 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "overrides": {
+    "sourcemap-codec": "npm:@jridgewell/sourcemap-codec@^1.5.0",
+    "rollup-plugin-terser": "npm:@rollup/plugin-terser@^0.4.0",
+    "@babel/plugin-proposal-private-methods": "npm:@babel/plugin-transform-private-methods@^7.24.0",
+    "@babel/plugin-proposal-numeric-separator": "npm:@babel/plugin-transform-numeric-separator@^7.24.0",
+    "@babel/plugin-proposal-nullish-coalescing-operator": "npm:@babel/plugin-transform-nullish-coalescing-operator@^7.24.0",
+    "@babel/plugin-proposal-class-properties": "npm:@babel/plugin-transform-class-properties@^7.24.0",
+    "@babel/plugin-proposal-optional-chaining": "npm:@babel/plugin-transform-optional-chaining@^7.24.0",
+    "@babel/plugin-proposal-private-property-in-object": "npm:@babel/plugin-transform-private-property-in-object@^7.24.0",
+    "rimraf": "^5.0.0",
+    "glob": "^10.4.0"
   },
   "devDependencies": {
     "@types/node": "^24.1.0",
